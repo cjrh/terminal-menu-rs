@@ -117,14 +117,23 @@ fn move_to_x(x: u16) {
     execute!(stdout(), cursor::MoveTo(x, cursor::position().unwrap().1)).unwrap();
 }
 
-fn update_value(items: &mut Vec<(String, Box<dyn TerminalMenuItem>)>, selected: usize, longest_name: u16) {
+fn update_value(
+    items: &mut Vec<(String, Box<dyn TerminalMenuItem>)>,
+    selected: usize,
+    longest_name: u16,
+    fun: fn(&str, &dyn TerminalMenuItem, usize) -> ()) {
+
     offset_y(longest_name + 7, (selected as i16) - (items.len() as i16) + 1);
     execute!(stdout(), terminal::Clear(terminal::ClearType::UntilNewLine)).unwrap();
     items[selected].1.print();
     offset_y(0, (items.len() as i16) - (selected as i16) - 1);
+    fun(&items[selected].0, items[selected].1.as_ref(), selected);
 }
 
-pub fn display(mut items: Vec<(String, Box<dyn TerminalMenuItem>)>, clear: bool) -> usize {
+pub fn display(
+    mut items: &mut Vec<(String, Box<dyn TerminalMenuItem>)>,
+    fun: fn(&str, &dyn TerminalMenuItem, usize) -> (),
+    clear: bool) -> usize {
 
     if items.len() == 0 {
         panic!("'items' cannot be empty");
@@ -136,7 +145,7 @@ pub fn display(mut items: Vec<(String, Box<dyn TerminalMenuItem>)>, clear: bool)
 
     //get longest name length for alignment
     let mut longest_name: u16 = 0;
-    for (name, _) in &items {
+    for (name, _) in &*items {
         if name.len() as u16 > longest_name {
             longest_name = name.len() as u16;
         }
@@ -195,17 +204,17 @@ pub fn display(mut items: Vec<(String, Box<dyn TerminalMenuItem>)>, clear: bool)
 
                 KeyEvent::Left  | KeyEvent::Char('a') => {
                     items[selected].1.left();
-                    update_value(&mut items, selected, longest_name);
+                    update_value(&mut items, selected, longest_name, fun);
                 },
                 KeyEvent::Right | KeyEvent::Char('d') => {
                     items[selected].1.right();
-                    update_value(&mut items, selected, longest_name);
+                    update_value(&mut items, selected, longest_name, fun);
                 },
                 KeyEvent::Enter => {
                     if items[selected].1.enter() {
                         break;
                     }
-                    update_value(&mut items, selected, longest_name);
+                    update_value(&mut items, selected, longest_name, fun);
                 }
                 _ => {}
             }

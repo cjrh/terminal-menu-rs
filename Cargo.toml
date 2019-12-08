@@ -1,10 +1,11 @@
 [package]
 name = "terminal-menu"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Samuel Kriikkula <samuel.kriikkula@gmail.com>"]
 edition = "2018"
 description = "Create simple menus for the terminal"
 license = "MIT"
+repository = ""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
