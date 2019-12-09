@@ -110,8 +110,11 @@ impl TerminalMenuItem for MultiSelectTerminalMenuItem {
     }
 }
 
-fn offset_y(x: u16, offset_y: i16) {
-    execute!(stdout(), cursor::MoveTo(x, (cursor::position().unwrap().1 as i16 + offset_y) as u16)).unwrap();
+fn move_up(a: u16) {
+    execute!(stdout(), cursor::MoveUp(a)).unwrap();
+}
+fn move_down(a: u16) {
+    execute!(stdout(), cursor::MoveDown(a)).unwrap();
 }
 fn move_to_x(x: u16) {
     execute!(stdout(), cursor::MoveTo(x, cursor::position().unwrap().1)).unwrap();
@@ -123,10 +126,12 @@ fn update_value(
     longest_name: u16,
     fun: fn(&str, &dyn TerminalMenuItem, usize) -> ()) {
 
-    offset_y(longest_name + 7, (selected as i16) - (items.len() as i16) + 1);
+    move_up((items.len() - selected - 1) as u16);
+    move_to_x(longest_name + 7);
     execute!(stdout(), terminal::Clear(terminal::ClearType::UntilNewLine)).unwrap();
     items[selected].1.print();
-    offset_y(0, (items.len() as i16) - (selected as i16) - 1);
+    move_down((items.len() - selected - 1) as u16);
+    move_to_x(0);
     fun(&items[selected].0, items[selected].1.as_ref(), selected);
 }
 
@@ -174,32 +179,54 @@ pub fn display(
         if let Some(InputEvent::Keyboard(k)) = sync_stdin.next() {
             match k {
                 KeyEvent::Up    | KeyEvent::Char('w') => {
-                    offset_y(0, (selected as i16) - (items.len() as i16) + 1);
+                    let mut to_move = items.len() - selected - 1;
+                    if to_move != 0 {
+                        move_up(to_move as u16);
+                    }
                     print!(" ");
+                    move_to_x(0);
                     if selected == 0 {
                         selected = items.len() - 1;
-                        offset_y(0, selected as i16);
+                        to_move = items.len() - 1;
+                        if to_move != 0 {
+                            move_down(to_move as u16);
+                        }
                     }
                     else {
                         selected -= 1;
-                        offset_y(0, -1);
+                        move_up(1);
                     }
                     print!(">");
-                    offset_y(0, (items.len() as i16) - (selected as i16) - 1);
+                    move_to_x(0);
+                    to_move = items.len() - selected - 1;
+                    if to_move != 0 {
+                        move_down(to_move as u16);
+                    }
                 }
                 KeyEvent::Down  | KeyEvent::Char('s') => {
-                    offset_y(0, (selected as i16) - (items.len() as i16) + 1);
+                    let mut to_move = items.len() - selected - 1;
+                    if to_move != 0 {
+                        move_up(to_move as u16);
+                    }
                     print!(" ");
+                    move_to_x(0);
                     if selected == items.len() - 1 {
                         selected = 0;
-                        offset_y(0, -(items.len() as i16) + 1);
+                        to_move = items.len() - 1;
+                        if to_move != 0 {
+                            move_up(to_move as u16);
+                        }
                     }
                     else {
                         selected += 1;
-                        offset_y(0, 1);
+                        move_down(1);
                     }
                     print!(">");
-                    offset_y(0, (items.len() as i16) - (selected as i16) - 1);
+                    move_to_x(0);
+                    to_move = items.len() - selected - 1;
+                    if to_move != 0 {
+                        move_down(to_move as u16);
+                    }
                 }
 
                 KeyEvent::Left  | KeyEvent::Char('a') => {
