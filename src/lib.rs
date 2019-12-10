@@ -68,12 +68,14 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
 
 pub struct TerminalMenu {
     items: Vec<TerminalMenuItem>,
-    selected: usize
+    selected: usize,
+    active: bool
 }
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
    TerminalMenu {
         items,
-        selected: 0
+        selected: 0,
+       active: false,
     }
 }
 
@@ -88,10 +90,18 @@ fn move_down(a: u16) {
         execute!(stdout(), cursor::MoveDown(a)).unwrap();
     }
 }
+fn move_right(a: u16) {
+    if a != 0 {
+        execute!(stdout(), cursor::MoveRight(a)).unwrap();
+    }
+}
 fn move_to_beginning() {
     for _ in 0..terminal::size().unwrap().0 {
         print!("\u{8}");
     }
+}
+fn clear_rest_of_line() {
+    execute!(stdout(), terminal::Clear(terminal::ClearType::UntilNewLine)).unwrap();
 }
 fn save_pos() {
     execute!(stdout(), cursor::SavePosition).unwrap();
@@ -102,6 +112,7 @@ fn restore_pos() {
 
 pub fn activate(mut menu: TerminalMenu) {
     thread::spawn(move || {
+        menu.active = true;
 
         execute!(stdout(), cursor::Hide).unwrap();
 
@@ -137,7 +148,7 @@ pub fn activate(mut menu: TerminalMenu) {
 
         use KeyEvent::*;
 
-        loop {
+        while menu.active {
             if let Some(InputEvent::Keyboard(k)) = stdin.next() {
                 match k {
                     Up | Char('w') => {
@@ -158,11 +169,114 @@ pub fn activate(mut menu: TerminalMenu) {
                         restore_pos();
                     }
                     Down | Char('s') => {
+                        save_pos();
+                        move_up((menu.items.len() - menu.selected - 1) as u16);
+                        print!(" ");
+
                         if menu.selected == menu.items.len() - 1 {
                             menu.selected = 0;
+                            move_up(menu.items.len() as u16 - 1);
                         }
                         else {
                             menu.selected += 1;
+                            move_down(1);
+                        }
+                        print!("\u{8}>");
+
+                        restore_pos();
+                    }
+                    Left | Char('a') => {
+                        save_pos();
+                        move_up((menu.items.len() - menu.selected - 1) as u16);
+                        move_right(longest_name as u16 + 6);
+                        clear_rest_of_line();
+
+                        match menu.items[menu.selected].kind {
+                            TMIKind::Button => {}
+                            TMIKind::Selection => {
+                                if menu.items[menu.selected].s_selected == 0 {
+                                    menu.items[menu.selected].s_selected =
+                                        menu.items[menu.selected].s_values.len() - 1;
+                                }
+                                else {
+                                    menu.items[menu.selected].s_selected -= 1;
+                                }
+                                print!("{}", menu.items[menu.selected].s_values[
+                                    menu.items[menu.selected].s_selected
+                                ]);
+                            }
+                            TMIKind::Numeric => {
+                                menu.items[menu.selected].n_value -=
+                                    menu.items[menu.selected].n_step;
+                                if menu.items[menu.selected].n_value <
+                                    menu.items[menu.selected].n_min {
+                                    menu.items[menu.selected].n_value =
+                                        menu.items[menu.selected].n_min;
+                                }
+                                print!("{}", menu.items[menu.selected].n_value);
+                            }
+                        }
+
+                        restore_pos();
+                    }
+                    Right | Char('d') => {
+                        save_pos();
+                        move_up((menu.items.len() - menu.selected - 1) as u16);
+                        move_right(longest_name as u16 + 6);
+                        clear_rest_of_line();
+
+                        match menu.items[menu.selected].kind {
+                            TMIKind::Button => {}
+                            TMIKind::Selection => {
+                                if menu.items[menu.selected].s_selected ==
+                                    menu.items[menu.selected].s_values.len() - 1 {
+                                    menu.items[menu.selected].s_selected = 0;
+                                }
+                                else {
+                                    menu.items[menu.selected].s_selected += 1;
+                                }
+                                print!("{}", menu.items[menu.selected].s_values[
+                                    menu.items[menu.selected].s_selected
+                                ]);
+                            }
+                            TMIKind::Numeric => {
+                                menu.items[menu.selected].n_value +=
+                                    menu.items[menu.selected].n_step;
+                                if menu.items[menu.selected].n_value >
+                                    menu.items[menu.selected].n_max {
+                                    menu.items[menu.selected].n_value =
+                                        menu.items[menu.selected].n_max;
+                                }
+                                print!("{}", menu.items[menu.selected].n_value);
+                            }
+                        }
+
+                        restore_pos();
+                    }
+                    Enter => {
+                        match menu.items[menu.selected].kind {
+                            TMIKind::Button => {
+                                menu.active = false;
+                            }
+                            TMIKind::Selection => {
+                                save_pos();
+                                move_up((menu.items.len() - menu.selected - 1) as u16);
+                                move_right(longest_name as u16 + 6);
+                                clear_rest_of_line();
+
+                                if menu.items[menu.selected].s_selected ==
+                                    menu.items[menu.selected].s_values.len() - 1 {
+                                    menu.items[menu.selected].s_selected = 0;
+                                } else {
+                                    menu.items[menu.selected].s_selected += 1;
+                                }
+                                print!("{}", menu.items[menu.selected].s_values[
+                                    menu.items[menu.selected].s_selected
+                                ]);
+
+                                restore_pos();
+                            }
+                            _ => ()
                         }
                     }
                     _ => ()
