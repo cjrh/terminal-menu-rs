@@ -10,6 +10,7 @@ use crossterm::{
     screen::RawScreen,
     input::{input, InputEvent, KeyEvent}
 };
+use std::sync::RwLockReadGuard;
 
 enum TMIKind {
     Button,
@@ -64,9 +65,33 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
 }
 
 pub struct TerminalMenu {
-    pub items: Vec<TerminalMenuItem>,
-    pub selected: usize,
-    pub active: bool
+    items: Vec<TerminalMenuItem>,
+    selected: usize,
+    active: bool
+}
+impl TerminalMenu {
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+    pub fn selected_item(&self) -> &str {
+        &self.items[self.selected].name
+    }
+    pub fn selection_value(&self, name: &str) -> &str {
+        for item in &self.items {
+            if item.name.eq(name) {
+                return &item.s_values[item.s_selected];
+            }
+        }
+        ""
+    }
+    pub fn numeric_value(&self, name: &str) -> f64 {
+        for item in &self.items {
+            if item.name.eq(name) {
+                return item.n_value;
+            }
+        }
+        0.0
+    }
 }
 pub fn menu(items: Vec<TerminalMenuItem>) -> Arc<RwLock<TerminalMenu>> {
    Arc::new(RwLock::new(TerminalMenu {
@@ -74,6 +99,9 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> Arc<RwLock<TerminalMenu>> {
         selected: 0,
        active: false,
     }))
+}
+pub fn look(menu: &RwLock<TerminalMenu>) -> RwLockReadGuard<TerminalMenu> {
+    menu.read().unwrap()
 }
 
 //helper functions
@@ -107,7 +135,8 @@ fn restore_pos() {
     execute!(stdout(), cursor::RestorePosition).unwrap();
 }
 
-pub fn activate(menu: Arc<RwLock<TerminalMenu>>) {
+pub fn activate(menu: &Arc<RwLock<TerminalMenu>>) {
+    let menu = menu.clone();
 
     //set active
     {
@@ -304,7 +333,13 @@ pub fn activate(menu: Arc<RwLock<TerminalMenu>>) {
             }
         }
 
-        println!();
-        execute!(stdout(), cursor::Show).unwrap();
+        execute!(stdout(),
+            cursor::MoveUp(menu.read().unwrap().items.len() as u16 - 1),
+            terminal::Clear(terminal::ClearType::FromCursorDown),
+            cursor::Show
+        ).unwrap();
     });
+}
+pub fn deactivate(menu: &RwLock<TerminalMenu>) {
+    menu.write().unwrap().active = false;
 }
