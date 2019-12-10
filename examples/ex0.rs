@@ -1,47 +1,16 @@
-use terminal_menu::{
-    display,
-    TerminalMenuItem,
-    MultiSelectTerminalMenuItem,
-    NumericTerminalMenuItem
-};
+use std::sync::{Arc, RwLock};
 
 fn main() {
+    use terminal_menu::*;
 
-    let mut menu1: Vec<(String, Box<dyn TerminalMenuItem>)> = vec![
-        ("Multi".to_owned(), Box::new((MultiSelectTerminalMenuItem::new(vec![
-            "First".to_owned(),
-            "Second".to_owned(),
-            "Third".to_owned(),
-        ])))),
-        ("Numeric".to_owned(), Box::new(NumericTerminalMenuItem::new(
-            0.0,
-            -5.0,
-            0.5,
-            1.0))),
-        ("Submenu".to_owned(), Box::new(())),
-        ("Exit".to_owned(), Box::new(()))
-    ];
-    let mut menu2: Vec<(String, Box<dyn TerminalMenuItem>)> = vec![
-        ("AnotherMulti".to_owned(), Box::new(MultiSelectTerminalMenuItem::new(vec![
-            "First".to_owned(),
-            "Second".to_owned(),
-            "Third".to_owned(),
-        ]))),
-        ("AnotherNumeric".to_owned(), Box::new(NumericTerminalMenuItem::new(
-            0.0,
-            -5.0,
-            0.5,
-            1.0))),
-        ("Exit".to_owned(), Box::new(()))
-    ];
+    let mut menu = menu(vec![
+        selection("Selection", vec!["First", "Second"]),
+        numeric("Numeric", 0.0, 0.5, -5.0, 10.0),
+        button("Exit")
+    ]);
 
-    loop {
-        let result = display(&mut menu1, |_,_,_| {} ,true);
-        if result == 2 {
-            display(&mut menu2, |_,_,_| {}, true);
-        }
-        if result == 3 {
-            break;
-        }
-    }
+    activate(menu);
+
+    loop {}
+
 }
