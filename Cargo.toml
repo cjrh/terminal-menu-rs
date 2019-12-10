@@ -6,6 +6,7 @@ edition = "2018"
 description = "Create simple menus for the terminal"
 license = "MIT"
 repository = "https://gitlab.com/xamn/terminal-menu-rs"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
