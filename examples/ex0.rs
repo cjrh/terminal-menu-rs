@@ -1,6 +1,3 @@
-use std::thread::sleep;
-use std::time::Duration;
-
 fn main() {
     //it might be a good idea to perform terminal-menu stuff
     //in separate functions from other code
