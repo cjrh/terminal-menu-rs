@@ -10,8 +10,10 @@ use crossterm::{
     screen::RawScreen,
     input::{input, InputEvent, KeyEvent}
 };
-use std::sync::RwLockReadGuard;
 
+type TerminalMenu = Arc<RwLock<TerminalMenuStruct>>;
+
+#[derive(Eq, PartialEq)]
 enum TMIKind {
     Button,
     Selection,
@@ -27,6 +29,11 @@ pub struct TerminalMenuItem {
     n_min: f64,
     n_max: f64,
 }
+/// Make a button terminal-menu item.
+/// # Example
+/// ```
+/// let my_button = terminal_menu::button("My Button");
+/// ```
 pub fn button(name: &str) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
@@ -39,6 +46,16 @@ pub fn button(name: &str) -> TerminalMenuItem {
         n_max: 0.0
     }
 }
+/// Make a terminal-menu item from which you can select
+/// a value from a selection.
+/// # Example
+/// ```
+/// let my_selection = terminal_menu::selection("My Selection", vec![
+///     "First Option",
+///     "Second Option",
+///     "Third Option",
+/// ]);
+/// ```
 pub fn selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
@@ -51,6 +68,17 @@ pub fn selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_max: 0.0
     }
 }
+/// Make a terminal-menu item from which you can
+/// select a number.
+/// # Example
+/// ```
+/// let my_numeric = terminal_menu::numeric("My Numeric",
+///     0.0,  //default
+///     0.5,  //step
+///     -5.0, //minimum
+///     10.0  //maximum
+/// );
+/// ```
 pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
@@ -64,44 +92,82 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
     }
 }
 
-pub struct TerminalMenu {
+pub struct TerminalMenuStruct {
     items: Vec<TerminalMenuItem>,
     selected: usize,
     active: bool
 }
-impl TerminalMenu {
+impl TerminalMenuStruct {
+    /// Returns true if the menu is active (open).
+    /// # Example
+    /// ```
+    /// let is_active = terminal_menu::look(&menu).is_active();
+    /// ```
     pub fn is_active(&self) -> bool {
         self.active
     }
+    /// Returns the name of the selected menu item.
+    /// # Example
+    /// ```
+    /// let selected = terminal_menu::look(&menu).selected_item();
+    /// ```
     pub fn selected_item(&self) -> &str {
         &self.items[self.selected].name
     }
-    pub fn selection_value(&self, name: &str) -> &str {
+    /// Returns the value of the specified selection item.
+    /// # Example
+    /// ```
+    /// let s_value = terminal_menu::look(&menu).selection_value("My Selection");
+    /// ```
+    pub fn selection_value(&self, name: &str) -> Option<&str> {
         for item in &self.items {
-            if item.name.eq(name) {
-                return &item.s_values[item.s_selected];
+            if item.kind == TMIKind::Selection && item.name.eq(name) {
+                return Some(&item.s_values[item.s_selected]);
             }
         }
-        ""
+        None
     }
-    pub fn numeric_value(&self, name: &str) -> f64 {
+    /// Returns the value of the specified numeric item.
+    /// # Example
+    /// ```
+    /// let s_value = terminal_menu::look(&menu).numeric_value("My Numeric");
+    /// ```
+    pub fn numeric_value(&self, name: &str) -> Option<f64> {
         for item in &self.items {
-            if item.name.eq(name) {
-                return item.n_value;
+            if item.kind == TMIKind::Numeric && item.name.eq(name) {
+                return Some(item.n_value);
             }
         }
-        0.0
+        None
     }
 }
-pub fn menu(items: Vec<TerminalMenuItem>) -> Arc<RwLock<TerminalMenu>> {
-   Arc::new(RwLock::new(TerminalMenu {
+/// Create a new terminal-menu.
+/// # Example
+/// ```
+/// //create the menu
+/// let menu = terminal_menu::menu(vec![
+///
+///     //lets you select from a list of values with arrow keys
+///     terminal_menu::selection("Selection", vec!["First", "Second", "Third"]),
+///
+///     //lets you select a number with arrow keys
+///     //arguments: default, step, min, max
+///     terminal_menu::numeric("Numeric", 0.0, 0.5, -5.0, 10.0),
+///
+///     //buttons when pressed exit the menu
+///     terminal_menu::button("Exit")
+///
+/// ]);
+/// ```
+pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
+    if items.len() == 0 {
+        panic!("items cannot be empty");
+    }
+    Arc::new(RwLock::new(TerminalMenuStruct {
         items,
         selected: 0,
        active: false,
     }))
-}
-pub fn look(menu: &RwLock<TerminalMenu>) -> RwLockReadGuard<TerminalMenu> {
-    menu.read().unwrap()
 }
 
 //helper functions
@@ -135,7 +201,14 @@ fn restore_pos() {
     execute!(stdout(), cursor::RestorePosition).unwrap();
 }
 
-pub fn activate(menu: &Arc<RwLock<TerminalMenu>>) {
+/// Activate (open) the menu.
+/// Menus will deactivate when button items are pressed or
+/// deactivated manually.
+/// # Example
+/// ```
+/// terminal_menu::activate(&menu);
+/// ```
+pub fn activate(menu: &TerminalMenu) {
     let menu = menu.clone();
 
     //set active
@@ -340,6 +413,11 @@ pub fn activate(menu: &Arc<RwLock<TerminalMenu>>) {
         ).unwrap();
     });
 }
-pub fn deactivate(menu: &RwLock<TerminalMenu>) {
+/// Deactivate (close) a menu manually.
+/// # Example
+/// ```
+/// terminal_menu::deactivate(&menu);
+/// ```
+pub fn deactivate(menu: &TerminalMenu) {
     menu.write().unwrap().active = false;
 }
