@@ -1,3 +1,7 @@
+//! Create simple menus for the terminal!
+//!
+//! Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
+
 use std::{
     sync::{Arc, RwLock},
     thread,
@@ -222,6 +226,7 @@ pub fn activate(menu: &TerminalMenu) {
         let mut menu = menu.write().unwrap();
         menu.active = true;
         menu.exited = false;
+        menu.selected = 0;
     }
 
     thread::spawn(move || {
@@ -422,7 +427,7 @@ pub fn activate(menu: &TerminalMenu) {
         menu.write().unwrap().exited = true;
     });
 }
-/// Deactivate (close) a menu manually.
+/// Deactivate (exit) a menu manually.
 /// # Example
 /// ```
 /// terminal_menu::deactivate(&menu);
