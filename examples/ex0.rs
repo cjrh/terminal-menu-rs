@@ -29,9 +29,7 @@ fn main() {
     activate(&menu);
 
     //wait for the menu to exit
-    while menu.read().unwrap().is_active() {
-        sleep(Duration::from_millis(10));
-    }
+    wait_for_exit(&menu);
 
     //read values
     {

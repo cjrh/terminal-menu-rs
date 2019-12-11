@@ -429,6 +429,14 @@ pub fn activate(menu: &TerminalMenu) {
 /// ```
 pub fn deactivate(menu: &TerminalMenu) {
     menu.write().unwrap().active = false;
+    wait_for_exit(menu);
+}
+/// Wait for menu to deactivate (exit).
+/// # Example
+/// ```
+/// terminal_menu::wait_for_exit(&menu);
+/// ```
+pub fn wait_for_exit(menu: &TerminalMenu) {
     loop {
         thread::sleep(Duration::from_millis(10));
         if menu.read().unwrap().exited {
