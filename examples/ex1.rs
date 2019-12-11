@@ -25,14 +25,12 @@ fn main() {
 
     println!("(use arrow keys or wasd)");
 
-    //open the menu
+    //open the menuc
     activate(&menu);
 
-    //wait for the menu to exit
-    while menu.read().unwrap().is_active() {
-        sleep(Duration::from_millis(10));
-    }
-
+    sleep(Duration::from_millis(2000));
+    deactivate(&menu);
+/*
     //read values
     {
         //make sure not to hold this variable long
@@ -42,4 +40,5 @@ fn main() {
         println!("Numeric: {}", read.numeric_value("Numeric").unwrap());
         println!("Selected: {}", read.selected_item());
     }
+    */
 }

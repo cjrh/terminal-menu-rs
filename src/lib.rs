@@ -1,7 +1,8 @@
 use std::{
     sync::{Arc, RwLock},
     thread,
-    io::{stdout, Write}
+    io::{stdout, Write},
+    time::Duration
 };
 use crossterm::{
     execute,
@@ -57,6 +58,9 @@ pub fn button(name: &str) -> TerminalMenuItem {
 /// ]);
 /// ```
 pub fn selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
+    if values.len() == 0 {
+        panic!("values cannot be empty");
+    }
     TerminalMenuItem {
         name: name.to_owned(),
         kind: TMIKind::Selection,
@@ -95,7 +99,8 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
 pub struct TerminalMenuStruct {
     items: Vec<TerminalMenuItem>,
     selected: usize,
-    active: bool
+    active: bool,
+    exited: bool,
 }
 impl TerminalMenuStruct {
     /// Returns true if the menu is active (open).
@@ -104,7 +109,7 @@ impl TerminalMenuStruct {
     /// let is_active = terminal_menu::look(&menu).is_active();
     /// ```
     pub fn is_active(&self) -> bool {
-        self.active
+        !self.exited
     }
     /// Returns the name of the selected menu item.
     /// # Example
@@ -166,7 +171,8 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
     Arc::new(RwLock::new(TerminalMenuStruct {
         items,
         selected: 0,
-       active: false,
+        active: false,
+        exited: true
     }))
 }
 
@@ -215,6 +221,7 @@ pub fn activate(menu: &TerminalMenu) {
     {
         let mut menu = menu.write().unwrap();
         menu.active = true;
+        menu.exited = false;
     }
 
     thread::spawn(move || {
@@ -253,7 +260,7 @@ pub fn activate(menu: &TerminalMenu) {
 
         let _raw = RawScreen::into_raw_mode().unwrap();
         let input = input();
-        let mut stdin = input.read_sync();
+        let mut stdin = input.read_async();
 
         use KeyEvent::*;
 
@@ -404,6 +411,7 @@ pub fn activate(menu: &TerminalMenu) {
                     _ => ()
                 }
             }
+            thread::sleep(Duration::from_millis(10));
         }
 
         execute!(stdout(),
@@ -411,6 +419,7 @@ pub fn activate(menu: &TerminalMenu) {
             terminal::Clear(terminal::ClearType::FromCursorDown),
             cursor::Show
         ).unwrap();
+        menu.write().unwrap().exited = true;
     });
 }
 /// Deactivate (close) a menu manually.
@@ -420,4 +429,10 @@ pub fn activate(menu: &TerminalMenu) {
 /// ```
 pub fn deactivate(menu: &TerminalMenu) {
     menu.write().unwrap().active = false;
+    loop {
+        thread::sleep(Duration::from_millis(10));
+        if menu.read().unwrap().exited {
+            break;
+        }
+    }
 }
