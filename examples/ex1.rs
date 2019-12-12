@@ -7,7 +7,7 @@ fn main() {
         button("Exit")
     ]);
     let first_menu = menu(vec![
-        selection("Selection", vec!["A", "B", "C"]),
+        list_selection("Selection", vec!["A", "B", "C"]),
         button("Back")
     ]);
     let second_menu = menu(vec![
@@ -16,14 +16,16 @@ fn main() {
     ]);
 
     loop {
-        activate_and_wait(&main_menu);
+
+        //run activates and waits for exit
+        run(&main_menu);
 
         //terminal_menu uses RwLock, as seen here
         //i suggest you read the RwLock documentation
 
         match main_menu.read().unwrap().selected_item() {
-            "First Menu"  => activate_and_wait(&first_menu),
-            "Second Menu" => activate_and_wait(&second_menu),
+            "First Menu"  => run(&first_menu),
+            "Second Menu" => run(&second_menu),
             _ => break
         }
     }
