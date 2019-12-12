@@ -474,7 +474,7 @@ fn run_menu(menu: TerminalMenu) {
 
                     restore_pos();
                 }
-                Enter => {
+                Enter | Char(' ') => {
                     let mut menu = menu.write().unwrap();
                     let s = menu.selected;
 
