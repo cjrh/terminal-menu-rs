@@ -23,7 +23,8 @@ enum TMIKind {
     Button,
     ScrollSelection,
     ListSelection,
-    Numeric,
+    ScrollNumeric,
+    ListNumeric,
 }
 pub struct TerminalMenuItem {
     name: String,
@@ -52,11 +53,10 @@ pub fn button(name: &str) -> TerminalMenuItem {
         n_max: 0.0,
     }
 }
-/// Make a terminal-menu item from which you can scroll
-/// a value from a selection.
+/// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
-/// let my_selection = terminal_menu::selection("My Selection", vec![
+/// let my_selection = terminal_menu::scroll_selection("My Selection", vec![
 ///     "First Option",
 ///     "Second Option",
 ///     "Third Option",
@@ -77,11 +77,10 @@ pub fn scroll_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_max: 0.0,
     }
 }
-/// Make a terminal-menu item from which you can select
-/// a value from a list.
+/// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
-/// let my_selection = terminal_menu::selection("My Selection", vec![
+/// let my_selection = terminal_menu::list_selection("My Selection", vec![
 ///     "First Option",
 ///     "Second Option",
 ///     "Third Option",
@@ -102,21 +101,42 @@ pub fn list_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_max: 0.0,
     }
 }
-/// Make a terminal-menu item from which you can
-/// select a number.
+/// Make a terminal-menu item from which you can select a number between specified bounds.
 /// # Example
 /// ```
-/// let my_numeric = terminal_menu::numeric("My Numeric",
+/// let my_numeric = terminal_menu::scroll_numeric("My Numeric",
 ///     0.0,  //default
 ///     0.5,  //step
 ///     -5.0, //minimum
 ///     10.0  //maximum
 /// );
 /// ```
-pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
+pub fn scroll_numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
-        kind: TMIKind::Numeric,
+        kind: TMIKind::ScrollNumeric,
+        s_values: vec![],
+        s_selected: 0,
+        n_value: default,
+        n_step: step,
+        n_min: min,
+        n_max: max,
+    }
+}
+/// Make a terminal-menu item from which you can select a number between specified bounds.
+/// # Example
+/// ```
+/// let my_numeric = terminal_menu::list_numeric("My Numeric",
+///     0.0,  //default
+///     0.5,  //step
+///     -5.0, //minimum
+///     10.0  //maximum
+/// );
+/// ```
+pub fn list_numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
+    TerminalMenuItem {
+        name: name.to_owned(),
+        kind: TMIKind::ListNumeric,
         s_values: vec![],
         s_selected: 0,
         n_value: default,
@@ -171,7 +191,10 @@ impl TerminalMenuStruct {
     /// ```
     pub fn numeric_value(&self, name: &str) -> Option<f64> {
         for item in &self.items {
-            if item.kind == TMIKind::Numeric && item.name.eq(name) {
+            if (item.kind == TMIKind::ScrollNumeric ||
+                item.kind == TMIKind::ListNumeric)
+                && item.name.eq(name) {
+
                 return Some(item.n_value);
             }
         }
@@ -286,7 +309,19 @@ fn print_menu(menu: &TerminalMenuStruct, longest_name: usize, selected: usize) {
                     );
                 }
             }
-            TMIKind::Numeric => print!("{}", menu.items[i].n_value)
+            TMIKind::ScrollNumeric => print!("{}", menu.items[i].n_value),
+            TMIKind::ListNumeric => {
+                move_left(1);
+                let mut j = menu.items[i].n_min;
+                while j <= menu.items[i].n_max {
+                    print!("{}{}{}",
+                           if j == menu.items[i].n_value {'['} else {' '},
+                           j,
+                           if j == menu.items[i].n_value {']'} else {' '},
+                    );
+                    j += menu.items[i].n_step;
+                }
+            }
         }
         if i != menu.items.len() - 1 {
             println!();
@@ -406,7 +441,7 @@ fn run_menu(menu: TerminalMenu) {
                                 );
                             }
                         }
-                        TMIKind::Numeric => {
+                        TMIKind::ScrollNumeric => {
                             menu.items[s].n_value -=
                                 menu.items[s].n_step;
                             if menu.items[s].n_value <
@@ -415,6 +450,25 @@ fn run_menu(menu: TerminalMenu) {
                                     menu.items[s].n_min;
                             }
                             print!("{}", menu.items[s].n_value);
+                        }
+                        TMIKind::ListNumeric => {
+                            menu.items[s].n_value -=
+                                menu.items[s].n_step;
+                            if menu.items[s].n_value <
+                                menu.items[s].n_min {
+                                menu.items[s].n_value =
+                                    menu.items[s].n_min;
+                            }
+                            move_left(1);
+                            let mut j = menu.items[s].n_min;
+                            while j <= menu.items[s].n_max {
+                                print!("{}{}{}",
+                                       if j == menu.items[s].n_value {'['} else {' '},
+                                       j,
+                                       if j == menu.items[s].n_value {']'} else {' '},
+                                );
+                                j += menu.items[s].n_step;
+                            }
                         }
                     }
 
@@ -460,7 +514,7 @@ fn run_menu(menu: TerminalMenu) {
                                 );
                             }
                         }
-                        TMIKind::Numeric => {
+                        TMIKind::ScrollNumeric => {
                             menu.items[s].n_value +=
                                 menu.items[s].n_step;
                             if menu.items[s].n_value >
@@ -469,6 +523,25 @@ fn run_menu(menu: TerminalMenu) {
                                     menu.items[s].n_max;
                             }
                             print!("{}", menu.items[s].n_value);
+                        }
+                        TMIKind::ListNumeric => {
+                            menu.items[s].n_value +=
+                                menu.items[s].n_step;
+                            if menu.items[s].n_value >
+                                menu.items[s].n_max {
+                                menu.items[s].n_value =
+                                    menu.items[s].n_max;
+                            }
+                            move_left(1);
+                            let mut j = menu.items[s].n_min;
+                            while j <= menu.items[s].n_max {
+                                print!("{}{}{}",
+                                       if j == menu.items[s].n_value {'['} else {' '},
+                                       j,
+                                       if j == menu.items[s].n_value {']'} else {' '},
+                                );
+                                j += menu.items[s].n_step;
+                            }
                         }
                     }
 

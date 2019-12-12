@@ -11,7 +11,7 @@ fn main() {
         button("Back")
     ]);
     let second_menu = menu(vec![
-        numeric("Numeric", -4.0, 2.0, -10.0, 12.0),
+        scroll_numeric("Numeric", -4.0, 2.0, -10.0, 12.0),
         button("Back")
     ]);
 
