@@ -7,6 +7,6 @@ Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
 ```
 > Selection    First
   Numeric      0
-  Option A     
-  Option B     
+  Submenu    
+  Exit     
 ```

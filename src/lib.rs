@@ -1,6 +1,6 @@
 //! Create simple menus for the terminal!
 //!
-//! Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
+//! [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 
 use std::{
     sync::{Arc, RwLock},
@@ -32,7 +32,7 @@ pub struct TerminalMenuItem {
     n_value: f64,
     n_step: f64,
     n_min: f64,
-    n_max: f64,
+    n_max: f64
 }
 /// Make a button terminal-menu item.
 /// # Example
@@ -48,7 +48,7 @@ pub fn button(name: &str) -> TerminalMenuItem {
         n_value: 0.0,
         n_step: 0.0,
         n_min: 0.0,
-        n_max: 0.0
+        n_max: 0.0,
     }
 }
 /// Make a terminal-menu item from which you can select
@@ -73,7 +73,7 @@ pub fn selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_value: 0.0,
         n_step: 0.0,
         n_min: 0.0,
-        n_max: 0.0
+        n_max: 0.0,
     }
 }
 /// Make a terminal-menu item from which you can
@@ -96,7 +96,7 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
         n_value: default,
         n_step: step,
         n_min: min,
-        n_max: max
+        n_max: max,
     }
 }
 
@@ -110,7 +110,7 @@ impl TerminalMenuStruct {
     /// Returns true if the menu is active (open).
     /// # Example
     /// ```
-    /// let is_active = terminal_menu::look(&menu).is_active();
+    /// let is_active = menu.read().unwrap().is_active();
     /// ```
     pub fn is_active(&self) -> bool {
         !self.exited
@@ -118,7 +118,7 @@ impl TerminalMenuStruct {
     /// Returns the name of the selected menu item.
     /// # Example
     /// ```
-    /// let selected = terminal_menu::look(&menu).selected_item();
+    /// let selected = menu.read().unwrap().selected_item();
     /// ```
     pub fn selected_item(&self) -> &str {
         &self.items[self.selected].name
@@ -126,7 +126,7 @@ impl TerminalMenuStruct {
     /// Returns the value of the specified selection item.
     /// # Example
     /// ```
-    /// let s_value = terminal_menu::look(&menu).selection_value("My Selection");
+    /// let s_value = menu.read().unwrap().selection_value("My Selection");
     /// ```
     pub fn selection_value(&self, name: &str) -> Option<&str> {
         for item in &self.items {
@@ -139,7 +139,7 @@ impl TerminalMenuStruct {
     /// Returns the value of the specified numeric item.
     /// # Example
     /// ```
-    /// let s_value = terminal_menu::look(&menu).numeric_value("My Numeric");
+    /// let n_value = menu.read().unwrap().numeric_value("My Numeric");
     /// ```
     pub fn numeric_value(&self, name: &str) -> Option<f64> {
         for item in &self.items {
@@ -179,6 +179,30 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
         exited: true
     }))
 }
+/// Shortcut to getting the selected item as a String.
+/// # Example
+/// ```
+/// let selected = terminal_menu::selected_item(&menu);
+/// ```
+pub fn selected_item(menu: &TerminalMenu) -> String {
+    menu.read().unwrap().selected_item().to_owned()
+}
+/// Shortcut to getting the value of the specified selection item as a String.
+/// # Example
+/// ```
+/// let s_value = terminal_menu::selection_value(&menu, "Selection");
+/// ```
+pub fn selection_value(menu: &TerminalMenu, item: &str) -> Option<String> {
+    menu.read().unwrap().selection_value(item).map(|s| s.to_owned())
+}
+/// Shortcut to getting the value of the specified numeric item.
+/// # Example
+/// ```
+/// let s_value = terminal_menu::selection_value(&menu, "Selection");
+/// ```
+pub fn numeric_value(menu: &TerminalMenu, item: &str) -> Option<f64> {
+    menu.read().unwrap().numeric_value(item)
+}
 
 //helper functions
 fn move_up(a: u16) {
@@ -210,6 +234,211 @@ fn save_pos() {
 fn restore_pos() {
     execute!(stdout(), cursor::RestorePosition).unwrap();
 }
+fn print_menu(menu: &TerminalMenuStruct, longest_name: usize, selected: usize) {
+    for i in 0..menu.items.len() {
+        print!("{} {}    ", if i == selected { '>' } else { ' ' }, menu.items[i].name);
+        for _ in menu.items[i].name.len()..longest_name {
+            print!(" ");
+        }
+        match menu.items[i].kind {
+            TMIKind::Button => {},
+            TMIKind::Selection => print!("{}", menu.items[i].s_values[menu.items[i].s_selected]),
+            TMIKind::Numeric => print!("{}", menu.items[i].n_value)
+        }
+        if i != menu.items.len() - 1 {
+            println!();
+        } else {
+            move_to_beginning();
+            stdout().flush().unwrap();
+        }
+    }
+}
+fn run_menu(menu: TerminalMenu) {
+
+    //set active
+    {
+        let mut menu = menu.write().unwrap();
+        menu.active = true;
+        menu.exited = false;
+    }
+
+    execute!(stdout(), cursor::Hide).unwrap();
+
+    //print initially
+    let mut longest_name = 0;
+    {
+        let menu = menu.read().unwrap();
+        for item in &menu.items {
+            if item.name.len() > longest_name {
+                longest_name = item.name.len();
+            }
+        }
+        print_menu(&menu, longest_name, menu.selected);
+    }
+
+    let _raw = RawScreen::into_raw_mode().unwrap();
+    let input = input();
+    let mut stdin = input.read_async();
+
+    use KeyEvent::*;
+
+    while menu.read().unwrap().active {
+        if let Some(InputEvent::Keyboard(k)) = stdin.next() {
+            match k {
+                Up | Char('w') => {
+                    let mut menu = menu.write().unwrap();
+
+                    save_pos();
+                    move_up((menu.items.len() - menu.selected - 1) as u16);
+                    print!(" ");
+
+                    if menu.selected == 0 {
+                        menu.selected = menu.items.len() - 1;
+                        move_down(menu.items.len() as u16 - 1);
+                    }
+                    else {
+                        menu.selected -= 1;
+                        move_up(1);
+                    }
+                    print!("\u{8}>");
+
+                    restore_pos();
+                }
+                Down | Char('s') => {
+                    let mut menu = menu.write().unwrap();
+
+                    save_pos();
+                    move_up((menu.items.len() - menu.selected - 1) as u16);
+                    print!(" ");
+
+                    if menu.selected == menu.items.len() - 1 {
+                        menu.selected = 0;
+                        move_up(menu.items.len() as u16 - 1);
+                    }
+                    else {
+                        menu.selected += 1;
+                        move_down(1);
+                    }
+                    print!("\u{8}>");
+
+                    restore_pos();
+                }
+                Left | Char('a') => {
+                    let mut menu = menu.write().unwrap();
+                    let s = menu.selected;
+
+                    save_pos();
+                    move_up((menu.items.len() - s - 1) as u16);
+                    move_right(longest_name as u16 + 6);
+                    clear_rest_of_line();
+
+                    match menu.items[s].kind {
+                        TMIKind::Button => {}
+                        TMIKind::Selection => {
+                            if menu.items[s].s_selected == 0 {
+                                menu.items[s].s_selected =
+                                    menu.items[s].s_values.len() - 1;
+                            }
+                            else {
+                                menu.items[s].s_selected -= 1;
+                            }
+                            print!("{}", menu.items[s].s_values[
+                                menu.items[s].s_selected
+                                ]);
+                        }
+                        TMIKind::Numeric => {
+                            menu.items[s].n_value -=
+                                menu.items[s].n_step;
+                            if menu.items[s].n_value <
+                                menu.items[s].n_min {
+                                menu.items[s].n_value =
+                                    menu.items[s].n_min;
+                            }
+                            print!("{}", menu.items[s].n_value);
+                        }
+                    }
+
+                    restore_pos();
+                }
+                Right | Char('d') => {
+                    let mut menu = menu.write().unwrap();
+                    let s = menu.selected;
+
+                    save_pos();
+                    move_up((menu.items.len() - s - 1) as u16);
+                    move_right(longest_name as u16 + 6);
+                    clear_rest_of_line();
+
+                    match menu.items[s].kind {
+                        TMIKind::Button => {}
+                        TMIKind::Selection => {
+                            if menu.items[s].s_selected ==
+                                menu.items[s].s_values.len() - 1 {
+                                menu.items[s].s_selected = 0;
+                            }
+                            else {
+                                menu.items[s].s_selected += 1;
+                            }
+                            print!("{}", menu.items[s].s_values[
+                                menu.items[s].s_selected
+                                ]);
+                        }
+                        TMIKind::Numeric => {
+                            menu.items[s].n_value +=
+                                menu.items[s].n_step;
+                            if menu.items[s].n_value >
+                                menu.items[s].n_max {
+                                menu.items[s].n_value =
+                                    menu.items[s].n_max;
+                            }
+                            print!("{}", menu.items[s].n_value);
+                        }
+                    }
+
+                    restore_pos();
+                }
+                Enter => {
+                    let mut menu = menu.write().unwrap();
+                    let s = menu.selected;
+
+                    match menu.items[s].kind {
+                        TMIKind::Button => {
+                            menu.active = false;
+                        }
+                        TMIKind::Selection => {
+                            save_pos();
+                            move_up((menu.items.len() - s - 1) as u16);
+                            move_right(longest_name as u16 + 6);
+                            clear_rest_of_line();
+
+                            if menu.items[s].s_selected ==
+                                menu.items[s].s_values.len() - 1 {
+                                menu.items[s].s_selected = 0;
+                            } else {
+                                menu.items[s].s_selected += 1;
+                            }
+                            print!("{}", menu.items[s].s_values[
+                                menu.items[s].s_selected
+                                ]);
+
+                            restore_pos();
+                        }
+                        _ => ()
+                    }
+                }
+                _ => ()
+            }
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    execute!(stdout(),
+            cursor::MoveUp(menu.read().unwrap().items.len() as u16 - 1),
+            terminal::Clear(terminal::ClearType::FromCursorDown),
+            cursor::Show
+        ).unwrap();
+    menu.write().unwrap().exited = true;
+}
 
 /// Activate (open) the menu.
 /// Menus will deactivate when button items are pressed or
@@ -220,211 +449,8 @@ fn restore_pos() {
 /// ```
 pub fn activate(menu: &TerminalMenu) {
     let menu = menu.clone();
-
-    //set active
-    {
-        let mut menu = menu.write().unwrap();
-        menu.active = true;
-        menu.exited = false;
-        menu.selected = 0;
-    }
-
     thread::spawn(move || {
-
-        execute!(stdout(), cursor::Hide).unwrap();
-
-        //print initially
-        let mut longest_name = 0;
-        {
-            let menu = menu.read().unwrap();
-
-            for item in &menu.items {
-                if item.name.len() > longest_name {
-                    longest_name = item.name.len();
-                }
-            }
-
-            for i in 0..menu.items.len() {
-                print!("{} {}    ", if i == 0 { '>' } else { ' ' }, menu.items[i].name);
-                for _ in menu.items[i].name.len()..longest_name {
-                    print!(" ");
-                }
-                match menu.items[i].kind {
-                    TMIKind::Button => {},
-                    TMIKind::Selection => print!("{}", menu.items[i].s_values[menu.items[i].s_selected]),
-                    TMIKind::Numeric => print!("{}", menu.items[i].n_value)
-                }
-                if i != menu.items.len() - 1 {
-                    println!();
-                } else {
-                    move_to_beginning();
-                    stdout().flush().unwrap();
-                }
-            }
-        }
-
-        let _raw = RawScreen::into_raw_mode().unwrap();
-        let input = input();
-        let mut stdin = input.read_async();
-
-        use KeyEvent::*;
-
-        while menu.read().unwrap().active {
-            if let Some(InputEvent::Keyboard(k)) = stdin.next() {
-                match k {
-                    Up | Char('w') => {
-                        let mut menu = menu.write().unwrap();
-
-                        save_pos();
-                        move_up((menu.items.len() - menu.selected - 1) as u16);
-                        print!(" ");
-
-                        if menu.selected == 0 {
-                            menu.selected = menu.items.len() - 1;
-                            move_down(menu.items.len() as u16 - 1);
-                        }
-                        else {
-                            menu.selected -= 1;
-                            move_up(1);
-                        }
-                        print!("\u{8}>");
-
-                        restore_pos();
-                    }
-                    Down | Char('s') => {
-                        let mut menu = menu.write().unwrap();
-
-                        save_pos();
-                        move_up((menu.items.len() - menu.selected - 1) as u16);
-                        print!(" ");
-
-                        if menu.selected == menu.items.len() - 1 {
-                            menu.selected = 0;
-                            move_up(menu.items.len() as u16 - 1);
-                        }
-                        else {
-                            menu.selected += 1;
-                            move_down(1);
-                        }
-                        print!("\u{8}>");
-
-                        restore_pos();
-                    }
-                    Left | Char('a') => {
-                        let mut menu = menu.write().unwrap();
-                        let s = menu.selected;
-
-                        save_pos();
-                        move_up((menu.items.len() - s - 1) as u16);
-                        move_right(longest_name as u16 + 6);
-                        clear_rest_of_line();
-
-                        match menu.items[s].kind {
-                            TMIKind::Button => {}
-                            TMIKind::Selection => {
-                                if menu.items[s].s_selected == 0 {
-                                    menu.items[s].s_selected =
-                                        menu.items[s].s_values.len() - 1;
-                                }
-                                else {
-                                    menu.items[s].s_selected -= 1;
-                                }
-                                print!("{}", menu.items[s].s_values[
-                                    menu.items[s].s_selected
-                                ]);
-                            }
-                            TMIKind::Numeric => {
-                                menu.items[s].n_value -=
-                                    menu.items[s].n_step;
-                                if menu.items[s].n_value <
-                                    menu.items[s].n_min {
-                                    menu.items[s].n_value =
-                                        menu.items[s].n_min;
-                                }
-                                print!("{}", menu.items[s].n_value);
-                            }
-                        }
-
-                        restore_pos();
-                    }
-                    Right | Char('d') => {
-                        let mut menu = menu.write().unwrap();
-                        let s = menu.selected;
-
-                        save_pos();
-                        move_up((menu.items.len() - s - 1) as u16);
-                        move_right(longest_name as u16 + 6);
-                        clear_rest_of_line();
-
-                        match menu.items[s].kind {
-                            TMIKind::Button => {}
-                            TMIKind::Selection => {
-                                if menu.items[s].s_selected ==
-                                    menu.items[s].s_values.len() - 1 {
-                                    menu.items[s].s_selected = 0;
-                                }
-                                else {
-                                    menu.items[s].s_selected += 1;
-                                }
-                                print!("{}", menu.items[s].s_values[
-                                    menu.items[s].s_selected
-                                ]);
-                            }
-                            TMIKind::Numeric => {
-                                menu.items[s].n_value +=
-                                    menu.items[s].n_step;
-                                if menu.items[s].n_value >
-                                    menu.items[s].n_max {
-                                    menu.items[s].n_value =
-                                        menu.items[s].n_max;
-                                }
-                                print!("{}", menu.items[s].n_value);
-                            }
-                        }
-
-                        restore_pos();
-                    }
-                    Enter => {
-                        let mut menu = menu.write().unwrap();
-                        let s = menu.selected;
-
-                        match menu.items[s].kind {
-                            TMIKind::Button => {
-                                menu.active = false;
-                            }
-                            TMIKind::Selection => {
-                                save_pos();
-                                move_up((menu.items.len() - s - 1) as u16);
-                                move_right(longest_name as u16 + 6);
-                                clear_rest_of_line();
-                                
-                                if menu.items[s].s_selected ==
-                                    menu.items[s].s_values.len() - 1 {
-                                    menu.items[s].s_selected = 0;
-                                } else {
-                                    menu.items[s].s_selected += 1;
-                                }
-                                print!("{}", menu.items[s].s_values[
-                                    menu.items[s].s_selected
-                                ]);
-
-                                restore_pos();
-                            }
-                            _ => ()
-                        }
-                    }
-                    _ => ()
-                }
-            }
-            thread::sleep(Duration::from_millis(10));
-        }
-
-        execute!(stdout(),
-            cursor::MoveUp(menu.read().unwrap().items.len() as u16 - 1),
-            terminal::Clear(terminal::ClearType::FromCursorDown),
-            cursor::Show
-        ).unwrap();
-        menu.write().unwrap().exited = true;
+        run_menu(menu);
     });
 }
 /// Deactivate (exit) a menu manually.
@@ -448,4 +474,12 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
             break;
         }
     }
+}
+/// Activate the menu and wait for it to deactivate (exit).
+/// # Example
+/// ```
+/// terminal_menu::activate_and_wait(&menu);
+/// ```
+pub fn activate_and_wait(menu: &TerminalMenu) {
+    run_menu(menu.clone());
 }

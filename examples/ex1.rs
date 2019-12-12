@@ -1,35 +1,33 @@
 fn main() {
     use terminal_menu::*;
 
-    let first_menu = menu(vec![
-        button("Some Menu"),
-        button("Other Menu"),
+    let main_menu = menu(vec![
+        button("First Menu"),
+        button("Second Menu"),
         button("Exit")
     ]);
-    let some_menu = menu(vec![
-        selection("Option", vec!["A", "B"]),
+    let first_menu = menu(vec![
+        selection("Selection", vec!["A", "B", "C"]),
         button("Back")
     ]);
-    let other_menu = menu(vec![
-        numeric("Option", 5.0, 0.25, 0.0, 10.0),
+    let second_menu = menu(vec![
+        numeric("Numeric", -4.0, 2.0, -10.0, 12.0),
         button("Back")
     ]);
 
     loop {
-        activate(&first_menu);
-        wait_for_exit(&first_menu);
+        activate_and_wait(&main_menu);
 
-        match first_menu.read().unwrap().selected_item() {
-            "Some Menu" => {
-                activate(&some_menu);
-                wait_for_exit(&some_menu);
-            },
-            "Other Menu" => {
-                activate(&other_menu);
-                wait_for_exit(&other_menu);
-            }
+        //terminal_menu uses RwLock, as seen here
+        //i suggest you read the RwLock documentation
+
+        match main_menu.read().unwrap().selected_item() {
+            "First Menu"  => activate_and_wait(&first_menu),
+            "Second Menu" => activate_and_wait(&second_menu),
             _ => break
         }
     }
 
+    println!("Selection: {}", selection_value(&first_menu, "Selection").unwrap());
+    println!("Numeric: {}", numeric_value(&second_menu, "Numeric").unwrap());
 }

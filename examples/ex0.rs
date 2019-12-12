@@ -15,8 +15,7 @@ fn main() {
         numeric("Numeric", 0.0, 0.5, -5.0, 10.0),
 
         //buttons when pressed exit the menu
-        button("Option A"),
-        button("Option B")
+        button("Exit")
 
     ]);
 
@@ -25,16 +24,12 @@ fn main() {
     //open the menu
     activate(&menu);
 
+    //other work can be done here
+
     //wait for the menu to exit
     wait_for_exit(&menu);
 
     //read values
-    {
-        //make sure not to hold this variable long
-        //if the menu is active
-        let read = menu.read().unwrap();
-        println!("Selection: {}", read.selection_value("Selection").unwrap());
-        println!("Numeric: {}", read.numeric_value("Numeric").unwrap());
-        println!("Selected: {}", read.selected_item());
-    }
+    println!("Selection: {}", selection_value(&menu, "Selection").unwrap());
+    println!("Numeric: {}", numeric_value(&menu, "Numeric").unwrap());
 }
