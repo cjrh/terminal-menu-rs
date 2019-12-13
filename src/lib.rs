@@ -21,10 +21,9 @@ type TerminalMenu = Arc<RwLock<TerminalMenuStruct>>;
 #[derive(Eq, PartialEq)]
 enum TMIKind {
     Button,
-    ScrollSelection,
-    ListSelection,
-    ScrollNumeric,
-    ListNumeric,
+    Scroll,
+    List,
+    Numeric,
 }
 pub struct TerminalMenuItem {
     name: String,
@@ -56,19 +55,19 @@ pub fn button(name: &str) -> TerminalMenuItem {
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
-/// let my_selection = terminal_menu::scroll_selection("My Selection", vec![
+/// let my_selection = terminal_menu::scroll("My Selection", vec![
 ///     "First Option",
 ///     "Second Option",
 ///     "Third Option",
 /// ]);
 /// ```
-pub fn scroll_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
+pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
     if values.len() == 0 {
         panic!("values cannot be empty");
     }
     TerminalMenuItem {
         name: name.to_owned(),
-        kind: TMIKind::ScrollSelection,
+        kind: TMIKind::Scroll,
         s_values: values.iter().map(|&s| s.to_owned()).collect(),
         s_selected: 0,
         n_value: 0.0,
@@ -80,19 +79,19 @@ pub fn scroll_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
-/// let my_selection = terminal_menu::list_selection("My Selection", vec![
+/// let my_selection = terminal_menu::list("My Selection", vec![
 ///     "First Option",
 ///     "Second Option",
 ///     "Third Option",
 /// ]);
 /// ```
-pub fn list_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
+pub fn list(name: &str, values: Vec<&str>) -> TerminalMenuItem {
     if values.len() == 0 {
         panic!("values cannot be empty");
     }
     TerminalMenuItem {
         name: name.to_owned(),
-        kind: TMIKind::ListSelection,
+        kind: TMIKind::List,
         s_values: values.iter().map(|&s| s.to_owned()).collect(),
         s_selected: 0,
         n_value: 0.0,
@@ -104,39 +103,17 @@ pub fn list_selection(name: &str, values: Vec<&str>) -> TerminalMenuItem {
 /// Make a terminal-menu item from which you can select a number between specified bounds.
 /// # Example
 /// ```
-/// let my_numeric = terminal_menu::scroll_numeric("My Numeric",
+/// let my_numeric = terminal_menu::numeric("My Numeric",
 ///     0.0,  //default
 ///     0.5,  //step
 ///     -5.0, //minimum
 ///     10.0  //maximum
 /// );
 /// ```
-pub fn scroll_numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
+pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
-        kind: TMIKind::ScrollNumeric,
-        s_values: vec![],
-        s_selected: 0,
-        n_value: default,
-        n_step: step,
-        n_min: min,
-        n_max: max,
-    }
-}
-/// Make a terminal-menu item from which you can select a number between specified bounds.
-/// # Example
-/// ```
-/// let my_numeric = terminal_menu::list_numeric("My Numeric",
-///     0.0,  //default
-///     0.5,  //step
-///     -5.0, //minimum
-///     10.0  //maximum
-/// );
-/// ```
-pub fn list_numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
-    TerminalMenuItem {
-        name: name.to_owned(),
-        kind: TMIKind::ListNumeric,
+        kind: TMIKind::Numeric,
         s_values: vec![],
         s_selected: 0,
         n_value: default,
@@ -176,8 +153,8 @@ impl TerminalMenuStruct {
     /// ```
     pub fn selection_value(&self, name: &str) -> Option<&str> {
         for item in &self.items {
-            if    (item.kind == TMIKind::ListSelection
-                || item.kind == TMIKind::ScrollSelection)
+            if    (item.kind == TMIKind::List
+                || item.kind == TMIKind::Scroll)
                 && item.name.eq(name) {
                 return Some(&item.s_values[item.s_selected]);
             }
@@ -191,9 +168,7 @@ impl TerminalMenuStruct {
     /// ```
     pub fn numeric_value(&self, name: &str) -> Option<f64> {
         for item in &self.items {
-            if (item.kind == TMIKind::ScrollNumeric ||
-                item.kind == TMIKind::ListNumeric)
-                && item.name.eq(name) {
+            if item.kind == TMIKind::Numeric && item.name.eq(name) {
 
                 return Some(item.n_value);
             }
@@ -298,8 +273,8 @@ fn print_menu(menu: &TerminalMenuStruct, longest_name: usize, selected: usize) {
         }
         match menu.items[i].kind {
             TMIKind::Button => {},
-            TMIKind::ScrollSelection => print!("{}", menu.items[i].s_values[menu.items[i].s_selected]),
-            TMIKind::ListSelection => {
+            TMIKind::Scroll => print!("{}", menu.items[i].s_values[menu.items[i].s_selected]),
+            TMIKind::List => {
                 move_left(1);
                 for j in 0..menu.items[i].s_values.len() {
                     print!("{}{}{}",
@@ -309,19 +284,7 @@ fn print_menu(menu: &TerminalMenuStruct, longest_name: usize, selected: usize) {
                     );
                 }
             }
-            TMIKind::ScrollNumeric => print!("{}", menu.items[i].n_value),
-            TMIKind::ListNumeric => {
-                move_left(1);
-                let mut j = menu.items[i].n_min;
-                while j <= menu.items[i].n_max {
-                    print!("{}{}{}",
-                           if j == menu.items[i].n_value {'['} else {' '},
-                           j,
-                           if j == menu.items[i].n_value {']'} else {' '},
-                    );
-                    j += menu.items[i].n_step;
-                }
-            }
+            TMIKind::Numeric => print!("{}", menu.items[i].n_value),
         }
         if i != menu.items.len() - 1 {
             println!();
@@ -412,7 +375,7 @@ fn run_menu(menu: TerminalMenu) {
 
                     match menu.items[s].kind {
                         TMIKind::Button => {}
-                        TMIKind::ScrollSelection => {
+                        TMIKind::Scroll => {
                             if menu.items[s].s_selected == 0 {
                                 menu.items[s].s_selected =
                                     menu.items[s].s_values.len() - 1;
@@ -424,7 +387,7 @@ fn run_menu(menu: TerminalMenu) {
                                 menu.items[s].s_selected
                             ]);
                         }
-                        TMIKind::ListSelection => {
+                        TMIKind::List => {
                             if menu.items[s].s_selected == 0 {
                                 menu.items[s].s_selected =
                                     menu.items[s].s_values.len() - 1;
@@ -441,7 +404,7 @@ fn run_menu(menu: TerminalMenu) {
                                 );
                             }
                         }
-                        TMIKind::ScrollNumeric => {
+                        TMIKind::Numeric => {
                             menu.items[s].n_value -=
                                 menu.items[s].n_step;
                             if menu.items[s].n_value <
@@ -450,25 +413,6 @@ fn run_menu(menu: TerminalMenu) {
                                     menu.items[s].n_min;
                             }
                             print!("{}", menu.items[s].n_value);
-                        }
-                        TMIKind::ListNumeric => {
-                            menu.items[s].n_value -=
-                                menu.items[s].n_step;
-                            if menu.items[s].n_value <
-                                menu.items[s].n_min {
-                                menu.items[s].n_value =
-                                    menu.items[s].n_min;
-                            }
-                            move_left(1);
-                            let mut j = menu.items[s].n_min;
-                            while j <= menu.items[s].n_max {
-                                print!("{}{}{}",
-                                       if j == menu.items[s].n_value {'['} else {' '},
-                                       j,
-                                       if j == menu.items[s].n_value {']'} else {' '},
-                                );
-                                j += menu.items[s].n_step;
-                            }
                         }
                     }
 
@@ -485,7 +429,7 @@ fn run_menu(menu: TerminalMenu) {
 
                     match menu.items[s].kind {
                         TMIKind::Button => {}
-                        TMIKind::ScrollSelection => {
+                        TMIKind::Scroll => {
                             if menu.items[s].s_selected ==
                                 menu.items[s].s_values.len() - 1 {
                                 menu.items[s].s_selected = 0;
@@ -497,7 +441,7 @@ fn run_menu(menu: TerminalMenu) {
                                 menu.items[s].s_selected
                             ]);
                         }
-                        TMIKind::ListSelection => {
+                        TMIKind::List => {
                             if menu.items[s].s_selected ==
                                 menu.items[s].s_values.len() - 1 {
                                 menu.items[s].s_selected = 0;
@@ -514,7 +458,7 @@ fn run_menu(menu: TerminalMenu) {
                                 );
                             }
                         }
-                        TMIKind::ScrollNumeric => {
+                        TMIKind::Numeric => {
                             menu.items[s].n_value +=
                                 menu.items[s].n_step;
                             if menu.items[s].n_value >
@@ -523,25 +467,6 @@ fn run_menu(menu: TerminalMenu) {
                                     menu.items[s].n_max;
                             }
                             print!("{}", menu.items[s].n_value);
-                        }
-                        TMIKind::ListNumeric => {
-                            menu.items[s].n_value +=
-                                menu.items[s].n_step;
-                            if menu.items[s].n_value >
-                                menu.items[s].n_max {
-                                menu.items[s].n_value =
-                                    menu.items[s].n_max;
-                            }
-                            move_left(1);
-                            let mut j = menu.items[s].n_min;
-                            while j <= menu.items[s].n_max {
-                                print!("{}{}{}",
-                                       if j == menu.items[s].n_value {'['} else {' '},
-                                       j,
-                                       if j == menu.items[s].n_value {']'} else {' '},
-                                );
-                                j += menu.items[s].n_step;
-                            }
                         }
                     }
 
@@ -555,7 +480,7 @@ fn run_menu(menu: TerminalMenu) {
                         TMIKind::Button => {
                             menu.active = false;
                         }
-                        TMIKind::ScrollSelection => {
+                        TMIKind::Scroll => {
                             save_pos();
                             move_up((menu.items.len() - s - 1) as u16);
                             move_right(longest_name as u16 + 6);
@@ -573,7 +498,7 @@ fn run_menu(menu: TerminalMenu) {
 
                             restore_pos();
                         }
-                        TMIKind::ListSelection => {
+                        TMIKind::List => {
                             save_pos();
                             move_up((menu.items.len() - s - 1) as u16);
                             move_right(longest_name as u16 + 6);
