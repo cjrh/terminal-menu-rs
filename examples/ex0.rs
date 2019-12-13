@@ -8,9 +8,9 @@ fn main() {
     let menu = menu(vec![
 
         //run the example and try these out
-        scroll_selection("Scroll Selection", vec!["Foo", "Bar", "Baz"]),
-        scroll_numeric("Scroll Numeric", 0.0, 0.5, -5.0, 10.0),
-        list_selection("List Selection", vec!["First", "Second", "Third"]),
+        scroll_selection("Scroll Selection", vec!["First", "Second", "Third"]),
+        scroll_numeric("Scroll Numeric", -3.5, 0.5, -5.0, 10.0),
+        list_selection("List Selection", vec!["Foo", "Bar", "Baz"]),
         list_numeric("List Numeric", 0.0, 1.0, 0.0, 5.0),
         button("Exit")
 
