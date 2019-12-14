@@ -178,45 +178,41 @@ impl TerminalMenuStruct {
     /// ```
     /// let s_value = menu.read().unwrap().selection_value("My Selection");
     /// ```
-    pub fn selection_value(&self, name: &str) -> Option<&str> {
+    pub fn selection_value(&self, name: &str) -> &str {
         for item in &self.items {
             if    (item.kind == TMIKind::List
                 || item.kind == TMIKind::Scroll)
                 && item.name.eq(name) {
-                return Some(&item.s_values[item.s_selected]);
+                return &item.s_values[item.s_selected];
             }
         }
-        None
+        panic!("Item not found or is wrong kind");
     }
     /// Returns the value of the specified numeric item.
     /// # Example
     /// ```
     /// let n_value = menu.read().unwrap().numeric_value("My Numeric");
     /// ```
-    pub fn numeric_value(&self, name: &str) -> Option<f64> {
+    pub fn numeric_value(&self, name: &str) -> f64 {
         for item in &self.items {
             if item.kind == TMIKind::Numeric && item.name.eq(name) {
-
-                return Some(item.n_value);
+                return item.n_value;
             }
         }
-        None
+        panic!("Item not found or is wrong kind");
     }
     /// Returns the specified submenu.
     /// # Example
     /// ```
     /// let submenu = menu.read().unwrap().get_submenu("My Submenu");
     /// ```
-    pub fn get_submenu(&self, name: &str) -> Option<TerminalMenu> {
+    pub fn get_submenu(&self, name: &str) -> TerminalMenu {
         for item in &self.items {
             if item.kind == TMIKind::Submenu && item.name.eq(name) {
-                match &item.submenu {
-                    None => {}
-                    Some(s) => return Some(s.clone())
-                }
+                return item.submenu.as_ref().unwrap().clone()
             }
         }
-        None
+        panic!("Item not found or is wrong kind");
     }
 }
 
@@ -252,15 +248,15 @@ pub fn selected_item(menu: &TerminalMenu) -> String {
 /// ```
 /// let s_value = terminal_menu::selection_value(&menu, "Selection");
 /// ```
-pub fn selection_value(menu: &TerminalMenu, item: &str) -> Option<String> {
-    menu.read().unwrap().selection_value(item).map(|s| s.to_owned())
+pub fn selection_value(menu: &TerminalMenu, item: &str) -> String {
+    menu.read().unwrap().selection_value(item).to_owned()
 }
 /// Shortcut to getting the value of the specified numeric item.
 /// # Example
 /// ```
 /// let s_value = terminal_menu::numeric_value(&menu, "Selection");
 /// ```
-pub fn numeric_value(menu: &TerminalMenu, item: &str) -> Option<f64> {
+pub fn numeric_value(menu: &TerminalMenu, item: &str) -> f64 {
     menu.read().unwrap().numeric_value(item)
 }
 /// Shortcut to getting the specified submenu.
@@ -268,7 +264,7 @@ pub fn numeric_value(menu: &TerminalMenu, item: &str) -> Option<f64> {
 /// ```
 /// let submenu = terminal_menu::get_submenu(&menu, "Submenu");
 /// ```
-pub fn get_submenu(menu: &TerminalMenu, item: &str) -> Option<TerminalMenu> {
+pub fn get_submenu(menu: &TerminalMenu, item: &str) -> TerminalMenu {
     menu.read().unwrap().get_submenu(item)
 }
 

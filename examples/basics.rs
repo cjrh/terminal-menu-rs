@@ -12,7 +12,9 @@ fn main() {
         list("Do Something", vec!["Yes", "No"]),
         numeric("Numeric", -5.25, 0.25, -10.0, 5.0),
         submenu("Submenu", vec![
+            scroll("Something", vec!["Select", "From", "These", "Or This"]),
             list("Another", vec!["Foo", "Bar", "Baz"]),
+            numeric("Number", 3.0, 2.0, 1.0, 5.0),
             button("Back")
         ]),
         button("Exit")
@@ -30,13 +32,12 @@ fn main() {
     wait_for_exit(&menu);
 
     //read values
-    println!("Selection: {}", selection_value(&menu, "Selection").unwrap());
-    println!("Do Something: {}", selection_value(&menu, "Do Something").unwrap());
-    println!("Numeric: {}", numeric_value(&menu, "Numeric").unwrap());
-    println!("Another: {}",
-             selection_value(
-                 &get_submenu(&menu, "Submenu").unwrap(),
-                 "Another")
-             .unwrap()
-    );
+    println!("Selection: {}", selection_value(&menu, "Selection"));
+    println!("Do Something: {}", selection_value(&menu, "Do Something"));
+    println!("Numeric: {}", numeric_value(&menu, "Numeric"));
+
+    let submenu = get_submenu(&menu, "Submenu");
+    println!("Submenu.Something: {}", selection_value(&submenu, "Something"));
+    println!("Submenu.Another: {}", selection_value(&submenu, "Another"));
+    println!("Submenu.Number: {}", numeric_value(&submenu, "Number"));
 }

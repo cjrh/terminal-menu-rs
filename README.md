@@ -1,6 +1,6 @@
 # terminal-menu-rs
 
-Create simple menus for the terminal. Windows/mac/linux
+Create simple menus for the terminal. Linux/Mac/Windows
 
 Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
 
