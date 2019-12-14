@@ -24,6 +24,7 @@ enum TMIKind {
     Scroll,
     List,
     Numeric,
+    Submenu,
 }
 pub struct TerminalMenuItem {
     name: String,
@@ -33,7 +34,8 @@ pub struct TerminalMenuItem {
     n_value: f64,
     n_step: f64,
     n_min: f64,
-    n_max: f64
+    n_max: f64,
+    submenu: Option<TerminalMenu>
 }
 /// Make a button terminal-menu item.
 /// # Example
@@ -50,6 +52,7 @@ pub fn button(name: &str) -> TerminalMenuItem {
         n_step: 0.0,
         n_min: 0.0,
         n_max: 0.0,
+        submenu: None
     }
 }
 /// Make a terminal-menu item from which you can select a value from a selection.
@@ -74,6 +77,7 @@ pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_step: 0.0,
         n_min: 0.0,
         n_max: 0.0,
+        submenu: None
     }
 }
 /// Make a terminal-menu item from which you can select a value from a selection.
@@ -98,6 +102,7 @@ pub fn list(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         n_step: 0.0,
         n_min: 0.0,
         n_max: 0.0,
+        submenu: None
     }
 }
 /// Make a terminal-menu item from which you can select a number between specified bounds.
@@ -120,6 +125,28 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
         n_step: step,
         n_min: min,
         n_max: max,
+        submenu: None
+    }
+}
+/// Make a terminal-menu submenu item.
+/// # Example
+/// ```
+/// let my_submenu = terminal_menu::submenu("My Submenu", vec![
+///     terminal_menu::list("List", vec!["First", "Second", "Third"]),
+///     terminal_menu::button("Back")
+/// ]);
+/// ```
+pub fn submenu(name: &str, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
+    TerminalMenuItem {
+        name: name.to_owned(),
+        kind: TMIKind::Submenu,
+        s_values: vec![],
+        s_selected: 0,
+        n_value: 0.0,
+        n_step: 0.0,
+        n_min: 0.0,
+        n_max: 0.0,
+        submenu: Some(menu(items))
     }
 }
 
@@ -175,23 +202,30 @@ impl TerminalMenuStruct {
         }
         None
     }
+    /// Returns the specified submenu.
+    /// # Example
+    /// ```
+    /// let submenu = menu.read().unwrap().get_submenu("My Submenu");
+    /// ```
+    pub fn get_submenu(&self, name: &str) -> Option<TerminalMenu> {
+        for item in &self.items {
+            if item.kind == TMIKind::Submenu && item.name.eq(name) {
+                match &item.submenu {
+                    None => {}
+                    Some(s) => return Some(s.clone())
+                }
+            }
+        }
+        None
+    }
 }
+
 /// Create a new terminal-menu.
 /// # Example
 /// ```
-/// //create the menu
 /// let menu = terminal_menu::menu(vec![
-///
-///     //lets you select from a list of values with arrow keys
-///     terminal_menu::selection("Selection", vec!["First", "Second", "Third"]),
-///
-///     //lets you select a number with arrow keys
-///     //arguments: default, step, min, max
-///     terminal_menu::numeric("Numeric", 0.0, 0.5, -5.0, 10.0),
-///
-///     //buttons when pressed exit the menu
+///     terminal_menu::list("Do Stuff", vec!["Yes", "No"]),
 ///     terminal_menu::button("Exit")
-///
 /// ]);
 /// ```
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
@@ -224,10 +258,18 @@ pub fn selection_value(menu: &TerminalMenu, item: &str) -> Option<String> {
 /// Shortcut to getting the value of the specified numeric item.
 /// # Example
 /// ```
-/// let s_value = terminal_menu::selection_value(&menu, "Selection");
+/// let s_value = terminal_menu::numeric_value(&menu, "Selection");
 /// ```
 pub fn numeric_value(menu: &TerminalMenu, item: &str) -> Option<f64> {
     menu.read().unwrap().numeric_value(item)
+}
+/// Shortcut to getting the specified submenu.
+/// # Example
+/// ```
+/// let submenu = terminal_menu::get_submenu(&menu, "Submenu");
+/// ```
+pub fn get_submenu(menu: &TerminalMenu, item: &str) -> Option<TerminalMenu> {
+    menu.read().unwrap().get_submenu(item)
 }
 
 //helper functions
@@ -272,7 +314,7 @@ fn print_menu(menu: &TerminalMenuStruct, longest_name: usize, selected: usize) {
             print!(" ");
         }
         match menu.items[i].kind {
-            TMIKind::Button => {},
+            TMIKind::Button | TMIKind::Submenu => {},
             TMIKind::Scroll => print!("{}", menu.items[i].s_values[menu.items[i].s_selected]),
             TMIKind::List => {
                 move_left(1);
@@ -317,226 +359,240 @@ fn run_menu(menu: TerminalMenu) {
         print_menu(&menu, longest_name, menu.selected);
     }
 
-    let _raw = RawScreen::into_raw_mode().unwrap();
-    let input = input();
-    let mut stdin = input.read_async();
+    {
+        let _raw = RawScreen::into_raw_mode().unwrap();
+        let input = input();
+        let mut stdin = input.read_async();
 
-    use KeyEvent::*;
+        use KeyEvent::*;
 
-    while menu.read().unwrap().active {
-        if let Some(InputEvent::Keyboard(k)) = stdin.next() {
-            match k {
-                Up | Char('w') => {
-                    let mut menu = menu.write().unwrap();
+        while menu.read().unwrap().active {
+            if let Some(InputEvent::Keyboard(k)) = stdin.next() {
+                match k {
+                    Up | Char('w') => {
+                        let mut menu = menu.write().unwrap();
 
-                    save_pos();
-                    move_up((menu.items.len() - menu.selected - 1) as u16);
-                    print!(" ");
+                        save_pos();
+                        move_up((menu.items.len() - menu.selected - 1) as u16);
+                        print!(" ");
 
-                    if menu.selected == 0 {
-                        menu.selected = menu.items.len() - 1;
-                        move_down(menu.items.len() as u16 - 1);
+                        if menu.selected == 0 {
+                            menu.selected = menu.items.len() - 1;
+                            move_down(menu.items.len() as u16 - 1);
+                        } else {
+                            menu.selected -= 1;
+                            move_up(1);
+                        }
+                        print!("\u{8}>");
+
+                        restore_pos();
                     }
-                    else {
-                        menu.selected -= 1;
-                        move_up(1);
-                    }
-                    print!("\u{8}>");
+                    Down | Char('s') => {
+                        let mut menu = menu.write().unwrap();
 
-                    restore_pos();
+                        save_pos();
+                        move_up((menu.items.len() - menu.selected - 1) as u16);
+                        print!(" ");
+
+                        if menu.selected == menu.items.len() - 1 {
+                            menu.selected = 0;
+                            move_up(menu.items.len() as u16 - 1);
+                        } else {
+                            menu.selected += 1;
+                            move_down(1);
+                        }
+                        print!("\u{8}>");
+
+                        restore_pos();
+                    }
+                    Left | Char('a') => {
+                        let mut menu = menu.write().unwrap();
+                        let s = menu.selected;
+
+                        save_pos();
+                        move_up((menu.items.len() - s - 1) as u16);
+                        move_right(longest_name as u16 + 6);
+                        clear_rest_of_line();
+
+                        match menu.items[s].kind {
+                            TMIKind::Button | TMIKind::Submenu => {}
+                            TMIKind::Scroll => {
+                                if menu.items[s].s_selected == 0 {
+                                    menu.items[s].s_selected =
+                                        menu.items[s].s_values.len() - 1;
+                                } else {
+                                    menu.items[s].s_selected -= 1;
+                                }
+                                print!("{}", menu.items[s].s_values[
+                                    menu.items[s].s_selected
+                                    ]);
+                            }
+                            TMIKind::List => {
+                                if menu.items[s].s_selected == 0 {
+                                    menu.items[s].s_selected =
+                                        menu.items[s].s_values.len() - 1;
+                                } else {
+                                    menu.items[s].s_selected -= 1;
+                                }
+                                move_left(1);
+                                for i in 0..menu.items[s].s_values.len() {
+                                    print!("{}{}{}",
+                                           if i == menu.items[s].s_selected { '[' } else { ' ' },
+                                           menu.items[s].s_values[i],
+                                           if i == menu.items[s].s_selected { ']' } else { ' ' },
+                                    );
+                                }
+                            }
+                            TMIKind::Numeric => {
+                                menu.items[s].n_value -=
+                                    menu.items[s].n_step;
+                                if menu.items[s].n_value <
+                                    menu.items[s].n_min {
+                                    menu.items[s].n_value =
+                                        menu.items[s].n_min;
+                                }
+                                print!("{}", menu.items[s].n_value);
+                            }
+                        }
+
+                        restore_pos();
+                    }
+                    Right | Char('d') => {
+                        let mut menu = menu.write().unwrap();
+                        let s = menu.selected;
+
+                        save_pos();
+                        move_up((menu.items.len() - s - 1) as u16);
+                        move_right(longest_name as u16 + 6);
+                        clear_rest_of_line();
+
+                        match menu.items[s].kind {
+                            TMIKind::Button | TMIKind::Submenu => {}
+                            TMIKind::Scroll => {
+                                if menu.items[s].s_selected ==
+                                    menu.items[s].s_values.len() - 1 {
+                                    menu.items[s].s_selected = 0;
+                                } else {
+                                    menu.items[s].s_selected += 1;
+                                }
+                                print!("{}", menu.items[s].s_values[
+                                    menu.items[s].s_selected
+                                    ]);
+                            }
+                            TMIKind::List => {
+                                if menu.items[s].s_selected ==
+                                    menu.items[s].s_values.len() - 1 {
+                                    menu.items[s].s_selected = 0;
+                                } else {
+                                    menu.items[s].s_selected += 1;
+                                }
+                                move_left(1);
+                                for i in 0..menu.items[s].s_values.len() {
+                                    print!("{}{}{}",
+                                           if i == menu.items[s].s_selected { '[' } else { ' ' },
+                                           menu.items[s].s_values[i],
+                                           if i == menu.items[s].s_selected { ']' } else { ' ' },
+                                    );
+                                }
+                            }
+                            TMIKind::Numeric => {
+                                menu.items[s].n_value +=
+                                    menu.items[s].n_step;
+                                if menu.items[s].n_value >
+                                    menu.items[s].n_max {
+                                    menu.items[s].n_value =
+                                        menu.items[s].n_max;
+                                }
+                                print!("{}", menu.items[s].n_value);
+                            }
+                        }
+
+                        restore_pos();
+                    }
+                    Enter | Char(' ') => {
+                        let mut menu = menu.write().unwrap();
+                        let s = menu.selected;
+
+                        match menu.items[s].kind {
+                            TMIKind::Button | TMIKind::Submenu => {
+                                menu.active = false;
+                            }
+                            TMIKind::Scroll => {
+                                save_pos();
+                                move_up((menu.items.len() - s - 1) as u16);
+                                move_right(longest_name as u16 + 6);
+                                clear_rest_of_line();
+
+                                if menu.items[s].s_selected ==
+                                    menu.items[s].s_values.len() - 1 {
+                                    menu.items[s].s_selected = 0;
+                                } else {
+                                    menu.items[s].s_selected += 1;
+                                }
+                                print!("{}", menu.items[s].s_values[
+                                    menu.items[s].s_selected
+                                    ]);
+
+                                restore_pos();
+                            }
+                            TMIKind::List => {
+                                save_pos();
+                                move_up((menu.items.len() - s - 1) as u16);
+                                move_right(longest_name as u16 + 6);
+                                clear_rest_of_line();
+
+                                if menu.items[s].s_selected ==
+                                    menu.items[s].s_values.len() - 1 {
+                                    menu.items[s].s_selected = 0;
+                                } else {
+                                    menu.items[s].s_selected += 1;
+                                }
+                                move_left(1);
+                                for i in 0..menu.items[s].s_values.len() {
+                                    print!("{}{}{}",
+                                           if i == menu.items[s].s_selected { '[' } else { ' ' },
+                                           menu.items[s].s_values[i],
+                                           if i == menu.items[s].s_selected { ']' } else { ' ' },
+                                    );
+                                }
+
+                                restore_pos();
+                            }
+                            _ => ()
+                        }
+                    }
+                    _ => ()
                 }
-                Down | Char('s') => {
-                    let mut menu = menu.write().unwrap();
-
-                    save_pos();
-                    move_up((menu.items.len() - menu.selected - 1) as u16);
-                    print!(" ");
-
-                    if menu.selected == menu.items.len() - 1 {
-                        menu.selected = 0;
-                        move_up(menu.items.len() as u16 - 1);
-                    }
-                    else {
-                        menu.selected += 1;
-                        move_down(1);
-                    }
-                    print!("\u{8}>");
-
-                    restore_pos();
-                }
-                Left | Char('a') => {
-                    let mut menu = menu.write().unwrap();
-                    let s = menu.selected;
-
-                    save_pos();
-                    move_up((menu.items.len() - s - 1) as u16);
-                    move_right(longest_name as u16 + 6);
-                    clear_rest_of_line();
-
-                    match menu.items[s].kind {
-                        TMIKind::Button => {}
-                        TMIKind::Scroll => {
-                            if menu.items[s].s_selected == 0 {
-                                menu.items[s].s_selected =
-                                    menu.items[s].s_values.len() - 1;
-                            }
-                            else {
-                                menu.items[s].s_selected -= 1;
-                            }
-                            print!("{}", menu.items[s].s_values[
-                                menu.items[s].s_selected
-                            ]);
-                        }
-                        TMIKind::List => {
-                            if menu.items[s].s_selected == 0 {
-                                menu.items[s].s_selected =
-                                    menu.items[s].s_values.len() - 1;
-                            }
-                            else {
-                                menu.items[s].s_selected -= 1;
-                            }
-                            move_left(1);
-                            for i in 0..menu.items[s].s_values.len() {
-                                print!("{}{}{}",
-                                    if i == menu.items[s].s_selected {'['} else {' '},
-                                    menu.items[s].s_values[i],
-                                    if i == menu.items[s].s_selected {']'} else {' '},
-                                );
-                            }
-                        }
-                        TMIKind::Numeric => {
-                            menu.items[s].n_value -=
-                                menu.items[s].n_step;
-                            if menu.items[s].n_value <
-                                menu.items[s].n_min {
-                                menu.items[s].n_value =
-                                    menu.items[s].n_min;
-                            }
-                            print!("{}", menu.items[s].n_value);
-                        }
-                    }
-
-                    restore_pos();
-                }
-                Right | Char('d') => {
-                    let mut menu = menu.write().unwrap();
-                    let s = menu.selected;
-
-                    save_pos();
-                    move_up((menu.items.len() - s - 1) as u16);
-                    move_right(longest_name as u16 + 6);
-                    clear_rest_of_line();
-
-                    match menu.items[s].kind {
-                        TMIKind::Button => {}
-                        TMIKind::Scroll => {
-                            if menu.items[s].s_selected ==
-                                menu.items[s].s_values.len() - 1 {
-                                menu.items[s].s_selected = 0;
-                            }
-                            else {
-                                menu.items[s].s_selected += 1;
-                            }
-                            print!("{}", menu.items[s].s_values[
-                                menu.items[s].s_selected
-                            ]);
-                        }
-                        TMIKind::List => {
-                            if menu.items[s].s_selected ==
-                                menu.items[s].s_values.len() - 1 {
-                                menu.items[s].s_selected = 0;
-                            }
-                            else {
-                                menu.items[s].s_selected += 1;
-                            }
-                            move_left(1);
-                            for i in 0..menu.items[s].s_values.len() {
-                                print!("{}{}{}",
-                                       if i == menu.items[s].s_selected {'['} else {' '},
-                                       menu.items[s].s_values[i],
-                                       if i == menu.items[s].s_selected {']'} else {' '},
-                                );
-                            }
-                        }
-                        TMIKind::Numeric => {
-                            menu.items[s].n_value +=
-                                menu.items[s].n_step;
-                            if menu.items[s].n_value >
-                                menu.items[s].n_max {
-                                menu.items[s].n_value =
-                                    menu.items[s].n_max;
-                            }
-                            print!("{}", menu.items[s].n_value);
-                        }
-                    }
-
-                    restore_pos();
-                }
-                Enter | Char(' ') => {
-                    let mut menu = menu.write().unwrap();
-                    let s = menu.selected;
-
-                    match menu.items[s].kind {
-                        TMIKind::Button => {
-                            menu.active = false;
-                        }
-                        TMIKind::Scroll => {
-                            save_pos();
-                            move_up((menu.items.len() - s - 1) as u16);
-                            move_right(longest_name as u16 + 6);
-                            clear_rest_of_line();
-
-                            if menu.items[s].s_selected ==
-                                menu.items[s].s_values.len() - 1 {
-                                menu.items[s].s_selected = 0;
-                            } else {
-                                menu.items[s].s_selected += 1;
-                            }
-                            print!("{}", menu.items[s].s_values[
-                                menu.items[s].s_selected
-                            ]);
-
-                            restore_pos();
-                        }
-                        TMIKind::List => {
-                            save_pos();
-                            move_up((menu.items.len() - s - 1) as u16);
-                            move_right(longest_name as u16 + 6);
-                            clear_rest_of_line();
-
-                            if menu.items[s].s_selected ==
-                                menu.items[s].s_values.len() - 1 {
-                                menu.items[s].s_selected = 0;
-                            }
-                            else {
-                                menu.items[s].s_selected += 1;
-                            }
-                            move_left(1);
-                            for i in 0..menu.items[s].s_values.len() {
-                                print!("{}{}{}",
-                                       if i == menu.items[s].s_selected {'['} else {' '},
-                                       menu.items[s].s_values[i],
-                                       if i == menu.items[s].s_selected {']'} else {' '},
-                                );
-                            }
-
-                            restore_pos();
-                        }
-                        _ => ()
-                    }
-                }
-                _ => ()
             }
+            thread::sleep(Duration::from_millis(10));
         }
-        thread::sleep(Duration::from_millis(10));
-    }
 
-    execute!(stdout(),
+        execute!(stdout(),
             cursor::MoveUp(menu.read().unwrap().items.len() as u16 - 1),
             terminal::Clear(terminal::ClearType::FromCursorDown),
             cursor::Show
         ).unwrap();
-    menu.write().unwrap().exited = true;
+    }
+
+    let mut runagain = false;
+    {
+        let menu_rd = menu.read().unwrap();
+        match &menu_rd.items[menu_rd.selected].submenu {
+            None => {}
+            Some(submenu) => {
+                submenu.write().unwrap().selected = 0;
+                run(submenu);
+                runagain = true;
+            }
+        }
+    }
+
+    if runagain {
+        run(&menu);
+    }
+    else {
+        menu.write().unwrap().exited = true;
+    }
 }
 
 /// Activate (open) the menu.

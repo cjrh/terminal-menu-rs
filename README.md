@@ -7,7 +7,7 @@ Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
 ```
 > Selection       Second Option
   Do Something   [Yes] No
-  Numeric         5.2
+  Numeric         5.25
   Submenu    
   Exit     
 ```

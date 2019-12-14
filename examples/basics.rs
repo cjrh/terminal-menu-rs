@@ -8,9 +8,13 @@ fn main() {
     let menu = menu(vec![
 
         //run the example and try these out
-        scroll("Scroll", vec!["First", "Second", "Third"]),
-        list("List", vec!["Foo", "Bar", "Baz"]),
+        scroll("Selection", vec!["First Option", "Second Option", "Third Option"]),
+        list("Do Something", vec!["Yes", "No"]),
         numeric("Numeric", -5.25, 0.25, -10.0, 5.0),
+        submenu("Submenu", vec![
+            list("Another", vec!["Foo", "Bar", "Baz"]),
+            button("Back")
+        ]),
         button("Exit")
 
     ]);
@@ -26,7 +30,13 @@ fn main() {
     wait_for_exit(&menu);
 
     //read values
-    println!("Scroll: {}", selection_value(&menu, "Scroll").unwrap());
-    println!("List: {}", selection_value(&menu, "List").unwrap());
+    println!("Selection: {}", selection_value(&menu, "Selection").unwrap());
+    println!("Do Something: {}", selection_value(&menu, "Do Something").unwrap());
     println!("Numeric: {}", numeric_value(&menu, "Numeric").unwrap());
+    println!("Another: {}",
+             selection_value(
+                 &get_submenu(&menu, "Submenu").unwrap(),
+                 "Another")
+             .unwrap()
+    );
 }
