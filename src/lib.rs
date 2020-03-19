@@ -8,8 +8,9 @@ use utils::*;
 use std::{
     sync::{Arc, RwLock},
     thread,
-    io::{stdout, Write},
-    time::Duration
+    io::{stdout, Write as IoWrite},
+    time::Duration,
+    fmt::Write as FmtWrite
 };
 use crossterm::{
     execute,
@@ -64,7 +65,7 @@ pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
             values:   values.iter().map(|&s| s.to_owned()).collect(),
             selected: 0
         },
-        last_print_len: values[0].len()
+        last_print_len: values[0].len() + 1
     }
 }
 /// Make a terminal-menu item from which you can select a value from a selection.
@@ -315,11 +316,27 @@ fn change_active_item(menu: &TerminalMenu, up: bool) {
 
     restore_cursor_pos();
 }
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Copy, Clone)]
 enum Action {
     Left,
     Right,
     Enter
+}
+fn change_selection_on_selection_item(selected: &mut usize, values: &mut Vec<String>, action: Action) {
+    if action == Action::Left {
+        if *selected == 0 {
+            *selected = values.len() - 1;
+        } else {
+            *selected -= 1;
+        }
+    }
+    else {
+        if *selected == values.len() - 1 {
+            *selected = 0;
+        } else {
+            *selected += 1;
+        }
+    }
 }
 fn use_menu_item(menu: &TerminalMenu, longest_name: usize, action: Action) {
     let mut menu = menu.write().unwrap();
@@ -328,77 +345,57 @@ fn use_menu_item(menu: &TerminalMenu, longest_name: usize, action: Action) {
     move_cursor_up(menu.items.len() - menu.selected - 1);
 
     //TODO: maybe fix this magic number?
-    move_cursor_right(longest_name + 6);
+    move_cursor_right(longest_name + 5);
 
-    let print_begin = cursor::position().unwrap().0;
-    let menu_selected = menu.selected;
-    match &mut menu.items[menu_selected].kind {
-        TMIKind::Button | TMIKind::Submenu(_) => {
-            if action == Action::Enter {
-                menu.active = false;
-            }
-        }
-        TMIKind::Scroll { selected, values } => {
-            if action == Action::Left {
-                if *selected == 0 {
-                    *selected = values.len() - 1;
-                } else {
-                    *selected -= 1;
-                }
-            }
-            else {
-                if *selected == values.len() - 1 {
-                    *selected = 0;
-                } else {
-                    *selected += 1;
-                }
-            }
-            print!("{}", values[*selected]);
-        }
-        TMIKind::List { values, selected } => {
-            if action == Action::Left {
-                if *selected == 0 {
-                    *selected = values.len() - 1;
-                } else {
-                    *selected -= 1;
-                }
-            }
-            else {
-                if *selected == values.len() - 1 {
-                    *selected = 0;
-                } else {
-                    *selected += 1;
-                }
-            }
-            move_cursor_left(1);
-            for i in 0..values.len() {
-                print!("{}{}{}",
-                       if i == *selected { '[' } else { ' ' },
-                       values[i],
-                       if i == *selected { ']' } else { ' ' },
-                );
-            }
-        }
-        TMIKind::Numeric { value, step, min, max } => {
-            if action == Action::Right {
-                *value += *step;
-                if value > max {
-                    *value = *max;
-                }
-            } else if action == Action::Left {
-                *value -= *step;
-                if value < min {
-                    *value = *min;
-                }
-            }
-            print!("{}", *value);
+    let _selected = menu.selected;
+    let menu_selected_item = &mut menu.items[_selected];
+    if let TMIKind::Button | TMIKind::Submenu(_) = &menu_selected_item.kind {
+        if action == Action::Enter {
+            menu.active = false;
         }
     }
-    let new_print_len = (cursor::position().unwrap().0 - print_begin) as usize;
-    for _ in new_print_len..menu.items[menu_selected].last_print_len {
-        print!(" ");
+    else {
+        let mut print_buf = String::new();
+        match &mut menu_selected_item.kind {
+            TMIKind::Scroll { selected, values} => {
+                change_selection_on_selection_item(selected, values, action);
+                write!(print_buf, " {}", values[*selected]).unwrap();
+            }
+            TMIKind::List { selected, values } => {
+                change_selection_on_selection_item(selected, values, action);
+                for i in 0..values.len() {
+                    write!(print_buf, "{}{}{}",
+                           if i == *selected { '[' } else { ' ' },
+                           values[i],
+                           if i == *selected { ']' } else { ' ' },
+                    ).unwrap();
+                }
+            }
+            TMIKind::Numeric { value, step, min, max } => {
+                if action == Action::Right {
+                    *value += *step;
+                    if value > max {
+                        *value = *max;
+                    }
+                } else if action == Action::Left {
+                    *value -= *step;
+                    if value < min {
+                        *value = *min;
+                    }
+                }
+                write!(print_buf, " {}", *value).unwrap();
+            }
+            _ => panic!("update match above")
+        }
+
+        print!("{}", print_buf);
+
+        let new_print_len = print_buf.len();
+        for _ in new_print_len..menu_selected_item.last_print_len {
+            print!(" ");
+        }
+        menu_selected_item.last_print_len = new_print_len;
     }
-    menu.items[menu_selected].last_print_len = new_print_len;
 
     restore_cursor_pos();
 }
