@@ -1,6 +1,6 @@
 [package]
 name = "terminal-menu"
-version = "1.1.0"
+version = "2.0.0"
 authors = ["Samuel Kriikkula <samuel.kriikkula@gmail.com>"]
 edition = "2018"
 description = "Create simple menus for the terminal"
@@ -13,4 +13,4 @@ categories = ["command-line-utilities", "command-line-interface"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = '0.13.3'
+crossterm = '0.16.0'

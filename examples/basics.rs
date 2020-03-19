@@ -1,4 +1,5 @@
 fn main() {
+
     //it might be a good idea to perform terminal-menu stuff
     //in separate functions from other code
     //so that you can use the following line without much confusion:
@@ -10,11 +11,11 @@ fn main() {
         //run the example and try these out
         scroll("Selection", vec!["First Option", "Second Option", "Third Option"]),
         list("Do Something", vec!["Yes", "No"]),
-        numeric("Numeric", -5.25, 0.25, -10.0, 5.0),
+        numeric("Numeric", 2.75, 0.25, -7.25, 11.5),
         submenu("Submenu", vec![
             scroll("Something", vec!["Select", "From", "These", "Or This"]),
             list("Another", vec!["Foo", "Bar", "Baz"]),
-            numeric("Number", 3.0, 2.0, 1.0, 5.0),
+            numeric("Number", 50.0, 1.0, 0.0, 100.0),
             button("Back")
         ]),
         button("Exit")
