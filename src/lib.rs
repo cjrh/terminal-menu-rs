@@ -2,12 +2,13 @@
 //!
 //! [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 
+#![allow(dead_code)]
+
 mod fancy_menu;
 mod basic_menu;
 mod utils;
 
-use utils::*;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard };
 use std::thread;
 use std::time::Duration;
 
@@ -48,6 +49,7 @@ pub fn button(name: &str) -> TerminalMenuItem {
         last_print_len: 0,
     }
 }
+
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
@@ -70,6 +72,7 @@ pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         last_print_len: values[0].len() + 1
     }
 }
+
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// # Example
 /// ```
@@ -92,6 +95,7 @@ pub fn list(name: &str, values: Vec<&str>) -> TerminalMenuItem {
         last_print_len: 0
     }
 }
+
 /// Make a terminal-menu item from which you can select a number between specified bounds.
 /// # Example
 /// ```
@@ -122,6 +126,7 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
 ///     terminal_menu::button("Back")
 /// ]);
 /// ```
+
 pub fn submenu(name: &str, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.to_owned(),
@@ -131,10 +136,13 @@ pub fn submenu(name: &str, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
 }
 
 pub struct TerminalMenuStruct {
-    items: Vec<TerminalMenuItem>,
+    pub items: Vec<TerminalMenuItem>,
     selected: usize,
     active: bool,
     exited: bool,
+
+    temporary_menu: Option<TerminalMenu>,
+    changed_selection_item_index: Option<usize>,
 }
 impl TerminalMenuStruct {
     /// Returns true if the menu is active (open).
@@ -145,18 +153,41 @@ impl TerminalMenuStruct {
     pub fn is_active(&self) -> bool {
         !self.exited
     }
+
     /// Returns the name of the selected menu item.
     /// # Example
     /// ```
-    /// let selected = menu.read().unwrap().selected_item();
+    /// let selected = mutable_menu_instance.selected_item();
     /// ```
-    pub fn selected_item(&self) -> &str {
+    pub fn selected_item_name(&self) -> &str {
         &self.items[self.selected].name
     }
+
+    /// Returns the index of the selected menu item.
+    /// # Example
+    /// ```
+    /// let selected = mutable_menu_instance.selected_item();
+    /// ```
+    pub fn selected_item_index(&self) -> usize {
+        self.selected
+    }
+
+    /// Set the selected item as an index of the items vec
+    /// # Example
+    /// ```
+    /// terminal_menu::mutable_instance(&menu).set_selected_item(5);
+    /// ```
+    pub fn set_selected_item(&mut self, index: usize) {
+        if index >= self.items.len() {
+            panic!("index out of range");
+        }
+
+    }
+
     /// Returns the value of the specified selection item.
     /// # Example
     /// ```
-    /// let s_value = menu.read().unwrap().selection_value("My Selection");
+    /// let s_value = mutable_menu_instance.selection_value("My Selection");
     /// ```
     pub fn selection_value(&self, name: &str) -> &str {
         for item in &self.items {
@@ -171,10 +202,11 @@ impl TerminalMenuStruct {
         }
         panic!("Item not found or is wrong kind");
     }
+
     /// Returns the value of the specified numeric item.
     /// # Example
     /// ```
-    /// let n_value = menu.read().unwrap().numeric_value("My Numeric");
+    /// let n_value = mutable_menu_instance.numeric_value("My Numeric");
     /// ```
     pub fn numeric_value(&self, name: &str) -> f64 {
         for item in &self.items {
@@ -186,10 +218,11 @@ impl TerminalMenuStruct {
         }
         panic!("Item not found or is wrong kind");
     }
+
     /// Returns the specified submenu.
     /// # Example
     /// ```
-    /// let submenu = menu.read().unwrap().get_submenu("My Submenu");
+    /// let submenu = mutable_menu_instance.get_submenu("My Submenu");
     /// ```
     pub fn get_submenu(&self, name: &str) -> TerminalMenu {
         for item in &self.items {
@@ -219,17 +252,30 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
         items,
         selected: 0,
         active: false,
-        exited: true
+        exited: true,
+        temporary_menu: None,
+        changed_selection_item_index: None
     }))
 }
+
 /// Shortcut to getting the selected item as a String.
 /// # Example
 /// ```
-/// let selected = terminal_menu::selected_item(&menu);
+/// let selected_name = terminal_menu::selected_item_name(&menu);
 /// ```
-pub fn selected_item(menu: &TerminalMenu) -> String {
-    menu.read().unwrap().selected_item().to_owned()
+pub fn selected_item_name(menu: &TerminalMenu) -> String {
+    menu.read().unwrap().selected_item_name().to_owned()
 }
+
+/// Shortcut to getting the index of the selected item.
+/// # Example
+/// ```
+/// let selected_index = terminal_menu::selected_item_index(&menu);
+/// ```
+pub fn selected_item_index(menu: &TerminalMenu) -> usize {
+    menu.read().unwrap().selected_item_index()
+}
+
 /// Shortcut to getting the value of the specified selection item as a String.
 /// # Example
 /// ```
@@ -238,6 +284,7 @@ pub fn selected_item(menu: &TerminalMenu) -> String {
 pub fn selection_value(menu: &TerminalMenu, item: &str) -> String {
     menu.read().unwrap().selection_value(item).to_owned()
 }
+
 /// Shortcut to getting the value of the specified numeric item.
 /// # Example
 /// ```
@@ -246,6 +293,7 @@ pub fn selection_value(menu: &TerminalMenu, item: &str) -> String {
 pub fn numeric_value(menu: &TerminalMenu, item: &str) -> f64 {
     menu.read().unwrap().numeric_value(item)
 }
+
 /// Shortcut to getting the specified submenu.
 /// # Example
 /// ```
@@ -253,6 +301,33 @@ pub fn numeric_value(menu: &TerminalMenu, item: &str) -> f64 {
 /// ```
 pub fn get_submenu(menu: &TerminalMenu, item: &str) -> TerminalMenu {
     menu.read().unwrap().get_submenu(item)
+}
+
+/// Shortcut to see if a menu has exited or never been activated.
+/// # Example
+/// ```
+/// if terminal_menu::has_exited(&menu) {
+///     ...
+/// }
+/// ```
+pub fn has_exited(menu: &TerminalMenu) -> bool {
+    menu.read().unwrap().exited
+}
+
+/// Get a mutable instance of the menu.
+/// Works only if has_exited(&menu) is true.
+/// # Example
+/// ```
+/// if terminal_menu::has_exited(&menu) {
+///     let mut mutable_menu = terminal_menu::mutable_instance(&menu);
+///     mutable_menu.set_selected_item(5);
+/// }
+/// ```
+pub fn get_mutable_instance(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
+    if !has_exited(menu) {
+        panic!("Cannot call mutable_instance if has_exited() is not true");
+    }
+    menu.write().unwrap()
 }
 
 /// Activate (open) the menu.
@@ -267,6 +342,7 @@ pub fn activate(menu: &TerminalMenu) {
         run_consuming(menu);
     });
 }
+
 /// Activate (open) the menu as the basic variant.
 /// Menu will deactivate when deactivated manually or button items are selected.
 /// # Example
@@ -279,6 +355,7 @@ fn activate_basic(menu: &TerminalMenu) {
         basic_menu::run(menu);
     });
 }
+
 /// Try to activate (open) the menu as the fancy variant.
 /// returns Err(()) when the terminal does not support it.
 /// Menu will deactivate when deactivated manually or button items are pressed.
@@ -296,6 +373,7 @@ pub fn try_activate_fancy(menu: &TerminalMenu) -> Result<(), ()> {
     });
     Ok(())
 }
+
 /// Deactivate (exit) a menu manually.
 /// # Example
 /// ```
@@ -305,6 +383,7 @@ pub fn deactivate(menu: &TerminalMenu) {
     menu.write().unwrap().active = false;
     wait_for_exit(menu);
 }
+
 /// Wait for menu to deactivate (exit).
 /// # Example
 /// ```
@@ -313,11 +392,12 @@ pub fn deactivate(menu: &TerminalMenu) {
 pub fn wait_for_exit(menu: &TerminalMenu) {
     loop {
         thread::sleep(Duration::from_millis(10));
-        if menu.read().unwrap().exited {
+        if has_exited(menu) {
             break;
         }
     }
 }
+
 /// Activate the menu and wait for it to deactivate (exit).
 /// # Example
 /// ```

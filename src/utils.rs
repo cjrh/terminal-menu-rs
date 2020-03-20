@@ -1,5 +1,5 @@
 use std::io::{stdout, Write};
-use crossterm::{execute, cursor};
+use crossterm::{execute, cursor, terminal};
 
 //helper functions
 /*pub fn move_cursor_left(n: usize) {
@@ -27,4 +27,16 @@ pub fn save_cursor_pos() {
 }
 pub fn restore_cursor_pos() {
     execute!(stdout(), cursor::RestorePosition).unwrap();
+}
+pub fn scroll_down(n: usize) {
+    if n != 0 {
+        execute!(stdout(), terminal::ScrollDown(n as u16)).unwrap();
+    }
+}
+pub fn float_printing_precision(n: f64) -> usize {
+    let s = n.to_string();
+    match s.split('.').nth(1) {
+        Some(s) => s.len().min(4),
+        None => 0
+    }
 }

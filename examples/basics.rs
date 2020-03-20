@@ -32,6 +32,7 @@ fn main() {
     //wait for the menu to exit
     wait_for_exit(&menu);
 
+    /*
     //read values
     println!("Selection: {}", selection_value(&menu, "Selection"));
     println!("Do Something: {}", selection_value(&menu, "Do Something"));
@@ -41,4 +42,5 @@ fn main() {
     println!("Submenu.Something: {}", selection_value(&submenu, "Something"));
     println!("Submenu.Another: {}", selection_value(&submenu, "Another"));
     println!("Submenu.Number: {}", numeric_value(&submenu, "Number"));
+    */
 }
