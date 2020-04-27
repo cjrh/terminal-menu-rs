@@ -85,8 +85,10 @@ fn change_active_item(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, i: usize)
             move_cursor_up(menu.items.len() - prev_i - 1);
             print!(" \u{8}");
             restore_cursor_pos();
-            move_cursor_up(menu.items.len() - i - 1);
-            print!(">");
+            if menu.items.len() <= term_height() {
+                move_cursor_up(menu.items.len() - i - 1);
+                print!(">");
+            }
             restore_cursor_pos();
         }
         TMStatus::Altscreen { topmost, .. } => {
