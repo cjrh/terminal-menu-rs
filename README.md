@@ -20,4 +20,4 @@ Examples: https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples
 - other small features
 - thanks to Vectole from gitlab for ideas on how to improve the crate
 
-[kriikkula.com/contact]()
+[kriikkula.com/contact](https://kriikkula.com/contact)
