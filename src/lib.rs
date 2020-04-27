@@ -1,5 +1,4 @@
-//! Create simple menus for the terminal!
-//!
+//! Display simple menus on the terminal!
 //! [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 
 #![allow(dead_code)]
@@ -8,17 +7,20 @@ mod fancy_menu;
 mod basic_menu;
 mod utils;
 
-use std::sync::{Arc, RwLock, RwLockWriteGuard };
+use utils::*;
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread;
 use std::time::Duration;
 
 type TerminalMenu = Arc<RwLock<TerminalMenuStruct>>;
 
 enum TMIKind {
+    Label,
     Button,
+    BackButton,
     Scroll  { values: Vec<String>, selected: usize },
     List    { values: Vec<String>, selected: usize },
-    Numeric { value:  f64, step: f64, min: f64, max: f64 },
+    Numeric { value:  f64, step: Option<f64>, min: Option<f64>, max: Option<f64> },
     Submenu(TerminalMenu),
 }
 pub struct TerminalMenuItem {
@@ -27,25 +29,46 @@ pub struct TerminalMenuItem {
     last_print_len: usize
 }
 
-pub fn crossterm_compatible() -> bool {
-    return match crossterm::event::poll(Duration::from_nanos(1)) {
-        Ok(_) => true,
-        Err(_) => false
-    }
-}
-fn run_consuming(menu: TerminalMenu) {
-    fancy_menu::run(menu);
-}
 
-/// Make a button terminal-menu item.
+/// Make a label terminal-menu item.
+/// Can not be selected.
+/// Useful for example as a title, separator, or help text.
 /// # Example
 /// ```
 /// let my_button = terminal_menu::button("My Button");
 /// ```
-pub fn button(name: &str) -> TerminalMenuItem {
+pub fn label<T: Into<String>>(text: T) -> TerminalMenuItem {
     TerminalMenuItem {
-        name: name.to_owned(),
+        name: text.into(),
+        kind: TMIKind::Label,
+        last_print_len: 0,
+    }
+}
+
+/// Make a button terminal-menu item.
+/// Exits the menu with all the parent menus when pressed.
+/// # Example
+/// ```
+/// let my_button = terminal_menu::button("My Button");
+/// ```
+pub fn button<T: Into<String>>(name: T) -> TerminalMenuItem {
+    TerminalMenuItem {
+        name: name.into(),
         kind: TMIKind::Button,
+        last_print_len: 0,
+    }
+}
+
+/// Make a button terminal-menu item.
+/// Returns to the previous menu (or exits when there is none) when pressed.
+/// # Example
+/// ```
+/// let my_button = terminal_menu::button("My Button");
+/// ```
+pub fn back_button<T: Into<String>>(name: T) -> TerminalMenuItem {
+    TerminalMenuItem {
+        name: name.into(),
+        kind: TMIKind::BackButton,
         last_print_len: 0,
     }
 }
@@ -59,17 +82,18 @@ pub fn button(name: &str) -> TerminalMenuItem {
 ///     "Third Option",
 /// ]);
 /// ```
-pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
+pub fn scroll<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem where T2::Item: Into<String> {
+    let values: Vec<String> = values.into_iter().map(|a| a.into()).collect();
     if values.is_empty() {
         panic!("values cannot be empty");
     }
     TerminalMenuItem {
-        name: name.to_owned(),
+        name: name.into(),
         kind: TMIKind::Scroll {
-            values:   values.iter().map(|&s| s.to_owned()).collect(),
+            values,
             selected: 0
         },
-        last_print_len: values[0].len() + 1
+        last_print_len: 0
     }
 }
 
@@ -82,14 +106,15 @@ pub fn scroll(name: &str, values: Vec<&str>) -> TerminalMenuItem {
 ///     "Third Option",
 /// ]);
 /// ```
-pub fn list(name: &str, values: Vec<&str>) -> TerminalMenuItem {
+pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem where T2::Item: Into<String> {
+    let values: Vec<String> = values.into_iter().map(|a| a.into()).collect();
     if values.is_empty() {
         panic!("values cannot be empty");
     }
     TerminalMenuItem {
-        name: name.to_owned(),
+        name: name.into(),
         kind: TMIKind::List {
-            values:   values.iter().map(|&s| s.to_owned()).collect(),
+            values,
             selected: 0
         },
         last_print_len: 0
@@ -101,14 +126,20 @@ pub fn list(name: &str, values: Vec<&str>) -> TerminalMenuItem {
 /// ```
 /// let my_numeric = terminal_menu::numeric("My Numeric",
 ///     0.0,  //default
-///     0.5,  //step
-///     -5.0, //minimum
-///     10.0  //maximum
+///     Some(0.5),  //step
+///     Some(-5.0), //minimum
+///     Some(10.0)  //maximum
 /// );
 /// ```
-pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> TerminalMenuItem {
+pub fn numeric<T: Into<String>>(name: T, default: f64, step: Option<f64>, min: Option<f64>, max: Option<f64>) -> TerminalMenuItem {
+    if !utils::value_valid(default, step, min, max) {
+        panic!("invalid default value");
+    }
+    if !utils::step_valid(step, min, max) {
+        panic!("invalid step");
+    }
     TerminalMenuItem {
-        name: name.to_owned(),
+        name: name.into(),
         kind: TMIKind::Numeric {
             value: default,
             step,
@@ -118,21 +149,27 @@ pub fn numeric(name: &str, default: f64, step: f64, min: f64, max: f64) -> Termi
         last_print_len: 0,
     }
 }
+
 /// Make a terminal-menu submenu item.
 /// # Example
 /// ```
 /// let my_submenu = terminal_menu::submenu("My Submenu", vec![
 ///     terminal_menu::list("List", vec!["First", "Second", "Third"]),
-///     terminal_menu::button("Back")
+///     terminal_menu::back_button("Back")
 /// ]);
 /// ```
-
-pub fn submenu(name: &str, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
+pub fn submenu<T: Into<String>>(name: T, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
     TerminalMenuItem {
-        name: name.to_owned(),
+        name: name.into(),
         kind: TMIKind::Submenu(menu(items)),
         last_print_len: 0,
     }
+}
+
+enum TMStatus {
+    Inactive,
+    Normal,
+    Altscreen { topmost: usize }
 }
 
 pub struct TerminalMenuStruct {
@@ -142,7 +179,11 @@ pub struct TerminalMenuStruct {
     exited: bool,
 
     temporary_menu: Option<TerminalMenu>,
-    changed_selection_item_index: Option<usize>,
+    item_changed: bool,
+
+    longest_name: usize,
+
+    status: TMStatus
 }
 impl TerminalMenuStruct {
     /// Returns true if the menu is active (open).
@@ -245,17 +286,22 @@ impl TerminalMenuStruct {
 /// ]);
 /// ```
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
-    if items.is_empty() {
-        panic!("items cannot be empty");
+    for i in 0..items.len() {
+        if let TMIKind::Label = items[i].kind {
+        } else {
+            return Arc::new(RwLock::new(TerminalMenuStruct {
+                items,
+                selected: i,
+                active: false,
+                exited: true,
+                temporary_menu: None,
+                item_changed: false,
+                longest_name: 0,
+                status: TMStatus::Inactive,
+            }))
+        }
     }
-    Arc::new(RwLock::new(TerminalMenuStruct {
-        items,
-        selected: 0,
-        active: false,
-        exited: true,
-        temporary_menu: None,
-        changed_selection_item_index: None
-    }))
+    panic!("no selectable items");
 }
 
 /// Shortcut to getting the selected item as a String.
@@ -339,7 +385,7 @@ pub fn get_mutable_instance(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMen
 pub fn activate(menu: &TerminalMenu) {
     let menu = menu.clone();
     thread::spawn(move || {
-        run_consuming(menu);
+        fancy_menu::run(menu.clone())
     });
 }
 
@@ -404,5 +450,30 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
 /// terminal_menu::run(&menu);
 /// ```
 pub fn run(menu: &TerminalMenu) {
-    run_consuming(menu.clone());
+    fancy_menu::run(menu.clone());
+}
+
+/// Activate (open) the menu as the basic variant and wait for it to deactivate (exit).
+/// Menu will deactivate when deactivated manually or button items are selected.
+/// # Example
+/// ```
+/// terminal_menu::activate_basic(&menu);
+/// ```
+fn run_basic(menu: &TerminalMenu) {
+    basic_menu::run(menu.clone());
+}
+
+/// Try to activate (open) the menu as the fancy variant and wait for it to deactivate (exit).
+/// returns Err(()) when the terminal does not support it.
+/// Menu will deactivate when deactivated manually or button items are pressed.
+/// # Example
+/// ```
+/// terminal_menu::try_run_fancy(&menu);
+/// ```
+pub fn try_run_fancy(menu: &TerminalMenu) -> Result<(), ()> {
+    if !crossterm_compatible() {
+        return Err(());
+    }
+    fancy_menu::run(menu.clone());
+    Ok(())
 }

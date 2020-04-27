@@ -9,20 +9,24 @@ fn main() {
     let menu = menu(vec![
 
         //run the example and try these out
+        label("(use arrow keys or wasd)"),
         scroll("Selection", vec!["First Option", "Second Option", "Third Option"]),
         list("Do Something", vec!["Yes", "No"]),
-        numeric("Numeric", 2.75, 0.25, -7.25, 11.5),
-        submenu("Submenu", vec![
-            scroll("Something", vec!["Select", "From", "These", "Or This"]),
-            list("Another", vec!["Foo", "Bar", "Baz"]),
-            numeric("Number", 50.0, 1.0, 0.0, 100.0),
-            button("Back")
-        ]),
+        numeric("Numeric", 2.75, Some(0.25), Some(-7.25), Some(11.5)),
+        submenu("Submenu", {
+            let mut submenu_items = vec![];
+            submenu_items.push(numeric("foo", 100.0, None, None, None));
+            for i in 0..5 {
+                submenu_items.push(label(format!("Section{}", i)));
+                for j in 0..5 {
+                    submenu_items.push(scroll(format!(" Item{}", j), vec!["A", "B", "C"]));
+                }
+            }
+            submenu_items.push(back_button("back"));
+            submenu_items
+        }),
         button("Exit")
-
     ]);
-
-    println!("(use arrow keys or wasd)");
 
     //open the menu
     activate(&menu);
