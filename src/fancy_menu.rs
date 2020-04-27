@@ -68,8 +68,12 @@ fn unprint(menu: &mut RwLockWriteGuard<TerminalMenuStruct>) {
             move_cursor_up(menu.items.len() - 1);
             clear_from_cursor_down();
         }
-        TMStatus::Altscreen { .. } => {
+        TMStatus::Altscreen { normal_not_printed, .. } => {
             terminal_alt_screen(false);
+            if !normal_not_printed {
+                move_cursor_up(menu.items.len() - 1);
+                clear_from_cursor_down();
+            }
         }
         TMStatus::Inactive => panic!()
     }
@@ -91,7 +95,8 @@ fn change_active_item(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, i: usize)
             }
             restore_cursor_pos();
         }
-        TMStatus::Altscreen { topmost, .. } => {
+        TMStatus::Altscreen { topmost, modified, .. } => {
+            *modified = true;
             let items_on_screen = term_height() - 2;
             let new_topmost = if i == 0 {
                 0
@@ -162,8 +167,9 @@ fn update_item_value(mut menu: RwLockWriteGuard<TerminalMenuStruct>) {
         TMStatus::Normal => {
             move_cursor_up(menu.items.len() - menu.selected - 1);
         }
-        TMStatus::Altscreen { topmost, .. } => {
+        TMStatus::Altscreen { topmost, normal_not_printed, .. } => {
             move_cursor_to_row(1 + menu.selected - topmost);
+            menu.status = TMStatus::Altscreen { topmost, normal_not_printed, modified: true };
         }
         TMStatus::Inactive => panic!()
     }
@@ -344,33 +350,36 @@ fn handle_key_event(menu: &TerminalMenu, key_event: event::KeyEvent) {
         _ => {}
     }
 }
-fn calc_topmost(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: usize, mut topmost: usize) {
+fn calc_topmost(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: usize, topmost: &mut usize) {
     let min_topmost = if menu.selected < (term_height - 4) { 0 } else { menu.selected - (term_height - 4) };
     let max_topmost = (menu.items.len() - 1) - (term_height - 3);
-    if topmost < min_topmost {
-        topmost = min_topmost;
+    if *topmost < min_topmost {
+        *topmost = min_topmost;
     }
-    if topmost > max_topmost {
-        topmost = max_topmost;
+    if *topmost > max_topmost {
+        *topmost = max_topmost;
     }
-    menu.status = TMStatus::Altscreen { topmost };
 }
 fn handle_resize(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: usize) {
     if menu.items.len() > term_height - 1 {
         match menu.status {
             TMStatus::Inactive => {
-                calc_topmost(menu, term_height, 0);
+                let mut topmost = 0;
+                calc_topmost(menu, term_height, &mut topmost);
+                menu.status = TMStatus::Altscreen { topmost, normal_not_printed: true, modified: false };
                 terminal_alt_screen(true);
                 print(menu);
             }
             TMStatus::Normal => {
-                unprint(menu);
-                calc_topmost(menu, term_height, 0);
+                let mut topmost = 0;
+                calc_topmost(menu, term_height, &mut topmost);
+                menu.status = TMStatus::Altscreen { topmost, normal_not_printed: false, modified: false };
                 terminal_alt_screen(true);
                 print(menu);
             }
-            TMStatus::Altscreen { topmost } => {
-                calc_topmost(menu, term_height, topmost);
+            TMStatus::Altscreen { mut topmost, normal_not_printed, modified } => {
+                calc_topmost(menu, term_height, &mut topmost);
+                menu.status = TMStatus::Altscreen { topmost, normal_not_printed, modified };
                 print(menu);
             }
         }
@@ -381,10 +390,16 @@ fn handle_resize(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: u
                 print(menu);
             }
             TMStatus::Normal => {}
-            TMStatus::Altscreen { .. } => {
-                unprint(menu);
+            TMStatus::Altscreen { normal_not_printed, modified, .. } => {
+                if modified && !normal_not_printed {
+                    unprint(menu);
+                } else {
+                    terminal_alt_screen(false);
+                }
                 menu.status = TMStatus::Normal;
-                print(menu);
+                if modified || normal_not_printed {
+                    print(menu);
+                }
             }
         }
     }

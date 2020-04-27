@@ -169,7 +169,7 @@ pub fn submenu<T: Into<String>>(name: T, items: Vec<TerminalMenuItem>) -> Termin
 enum TMStatus {
     Inactive,
     Normal,
-    Altscreen { topmost: usize }
+    Altscreen { topmost: usize, normal_not_printed: bool, modified: bool }
 }
 
 pub struct TerminalMenuStruct {

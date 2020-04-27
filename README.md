@@ -1,5 +1,5 @@
 # terminal-menu-rs
-Display simple menus on the terminal  
+Display simple menus on the terminal.
 [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 ```
 > Selection       Second Option
@@ -21,3 +21,5 @@ Display simple menus on the terminal
 - thanks to Vectole from gitlab for ideas on how to improve the crate
 
 [kriikkula.com/contact](https://kriikkula.com/contact)
+
+(TrFailedMsg enum variant is the villain of this project)
