@@ -15,7 +15,7 @@ fn main() {
         numeric("Numeric", 2.75, Some(0.25), Some(-7.25), Some(11.5)),
         submenu("Submenu", {
             let mut submenu_items = vec![];
-            submenu_items.push(numeric("foo", 100.0, None, None, None));
+            submenu_items.push(label("Long menu, scrolls when terminal is too small"));
             for i in 0..5 {
                 submenu_items.push(label(format!("Section{}", i)));
                 for j in 0..5 {

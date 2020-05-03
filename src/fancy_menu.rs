@@ -71,8 +71,9 @@ fn unprint(menu: &mut RwLockWriteGuard<TerminalMenuStruct>) {
         TMStatus::Altscreen { normal_not_printed, .. } => {
             terminal_alt_screen(false);
             if !normal_not_printed {
-                move_cursor_up(menu.items.len() - 1);
-                clear_from_cursor_down();
+                menu.status = TMStatus::Normal;
+                unprint(menu);
+                return;
             }
         }
         TMStatus::Inactive => panic!()
@@ -444,8 +445,13 @@ pub fn run(menu: TerminalMenu) {
         let mut menu = menu.write().unwrap();
         let mut longest_name = 0;
         for item in &menu.items {
-            if item.name.len() > longest_name {
-                longest_name = item.name.len();
+            match item.kind {
+                Scroll { .. } | List { .. } | Numeric { .. } => {
+                    if item.name.len() > longest_name {
+                        longest_name = item.name.len();
+                    }
+                }
+                _ => {}
             }
         }
         menu.longest_name = longest_name;

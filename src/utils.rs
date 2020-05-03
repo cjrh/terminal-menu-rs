@@ -49,6 +49,9 @@ pub fn term_width() -> usize {
 pub fn term_height() -> usize {
     terminal::size().unwrap().1 as usize
 }
+pub fn set_term_size(x: usize, y: usize) {
+    execute!(get_stdout(), terminal::SetSize(x as u16, y as u16)).unwrap();
+}
 pub fn move_cursor_to_row(row: usize) {
     move_cursor_to(0, row);
 }
