@@ -15,14 +15,12 @@ fn main() {
         numeric("Numeric", 2.75, Some(0.25), Some(-7.25), Some(11.5)),
         submenu("Submenu", {
             let mut submenu_items = vec![];
-            submenu_items.push(label("Long menu, scrolls when terminal is too small"));
-            for i in 0..5 {
-                submenu_items.push(label(format!("Section{}", i)));
-                for j in 0..5 {
-                    submenu_items.push(scroll(format!(" Item{}", j), vec!["A", "B", "C"]));
-                }
+            submenu_items.push(label("Long menu"));
+            for i in 0..25 {
+                submenu_items.push(scroll(format!("Item{}", i), vec!["A", "B", "C"]));
             }
-            submenu_items.push(back_button("back"));
+            submenu_items.push(back_button("Back"));
+            submenu_items.push(button("Exit"));
             submenu_items
         }),
         button("Exit")
@@ -36,15 +34,11 @@ fn main() {
     //wait for the menu to exit
     wait_for_exit(&menu);
 
-    /*
     //read values
-    println!("Selection: {}", selection_value(&menu, "Selection"));
-    println!("Do Something: {}", selection_value(&menu, "Do Something"));
-    println!("Numeric: {}", numeric_value(&menu, "Numeric"));
+    println!("Selection:     {}", selection_value(&menu, "Selection"));
+    println!("Do Something:  {}", selection_value(&menu, "Do Something"));
+    println!("Numeric:       {}", numeric_value(&menu, "Numeric"));
 
     let submenu = get_submenu(&menu, "Submenu");
-    println!("Submenu.Something: {}", selection_value(&submenu, "Something"));
-    println!("Submenu.Another: {}", selection_value(&submenu, "Another"));
-    println!("Submenu.Number: {}", numeric_value(&submenu, "Number"));
-    */
+    println!("Submenu.Item0: {}", selection_value(&submenu, "Item0"));
 }
