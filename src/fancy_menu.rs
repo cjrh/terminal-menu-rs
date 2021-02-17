@@ -348,6 +348,7 @@ fn handle_key_event(menu: &TerminalMenu, key_event: event::KeyEvent) {
         Left  | Char('a') | Char('h') => inc_or_dec_item(&menu, false),
         Right | Char('d') | Char('l') => inc_or_dec_item(&menu, true),
         Enter | Char(' ') => handle_enter(&menu),
+        Esc | Char('q') => { menu.write().unwrap().exited = true; term_mode(false) },
         _ => {}
     }
 }
