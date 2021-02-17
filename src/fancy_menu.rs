@@ -343,10 +343,10 @@ fn handle_enter(menu: &TerminalMenu) {
 fn handle_key_event(menu: &TerminalMenu, key_event: event::KeyEvent) {
     use event::KeyCode::*;
     match key_event.code {
-        Up | Char('w') => inc_or_dec_active_item(&mut menu.write().unwrap(), true),
-        Down | Char('s') => inc_or_dec_active_item(&mut menu.write().unwrap(), false),
-        Left  | Char('a') => inc_or_dec_item(&menu, false),
-        Right | Char('d') => inc_or_dec_item(&menu, true),
+        Up | Char('w') | Char('k') => inc_or_dec_active_item(&mut menu.write().unwrap(), true),
+        Down | Char('s') | Char('j') => inc_or_dec_active_item(&mut menu.write().unwrap(), false),
+        Left  | Char('a') | Char('h') => inc_or_dec_item(&menu, false),
+        Right | Char('d') | Char('l') => inc_or_dec_item(&menu, true),
         Enter | Char(' ') => handle_enter(&menu),
         _ => {}
     }
