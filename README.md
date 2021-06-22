@@ -9,6 +9,15 @@ Display simple menus on the terminal.
   Exit     
 ```
 
+### v2.0.0
+
+- updated to crossterm 0.20.0
+- complete backend rewrite
+- color [yay :)]
+- removed clumsy helper functions
+- added basic menu variant for unsupported terminals
+- bugfixes
+
 ### v1.9.7
 
 - scrolling now possible when items do not fit on the screen
@@ -20,4 +29,4 @@ Display simple menus on the terminal.
 - other small features
 - thanks to Vectole from gitlab for ideas on how to improve the crate
 
-[kriikkula.com/contact](https://kriikkula.com/contact)
+[kriikkula.com](https://kriikkula.com/)

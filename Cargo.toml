@@ -1,6 +1,6 @@
 [package]
 name = "terminal-menu"
-version = "1.9.7"
+version = "2.0.0"
 authors = ["Samuel Kriikkula <samuel@kriikkula.com>"]
 edition = "2018"
 description = "Display simple menus on the terminal"
@@ -16,5 +16,5 @@ categories = ["command-line-utilities", "command-line-interface"]
 gitlab = { repository = "xamn/terminal-menu-rs" }
 
 [dependencies]
-crossterm = "0.17.3"
+crossterm = "0.20.0"
 lazy_static = "1.4.0"

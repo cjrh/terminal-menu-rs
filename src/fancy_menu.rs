@@ -1,488 +1,461 @@
-use std::fmt::Write as FmtWrite;
-use std::sync::RwLockWriteGuard;
-use crate::{TerminalMenu, TerminalMenuStruct, TMStatus, TMIKind::*, button, scroll, selected_item_index, get_mutable_instance, TMIKind};
-use crate::utils::*;
-use crossterm::event;
+use std::io::{stdout, Write, stdin};
+use crate::{TerminalMenu, TerminalMenuStruct, TMIKind, utils, back_button, PrintState};
+use crossterm::*;
 
-fn print_item(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, i: usize) {
-    //TODO: how many spaces and why?
-    print!("{} {}   ", if menu.selected == i { '>' } else { ' ' }, menu.items[i].name);
+pub fn run(menu: TerminalMenu) {
+    {
+        let mut menu_wr = menu.write().unwrap();
+        menu_wr.active = true;
+        menu_wr.exited = false;
 
-    for _ in menu.items[i].name.len()..menu.longest_name {
-        print!(" ");
+        menu_wr.longest_name = menu_wr.items.iter().map(|a| a.name.len()).max().unwrap();
+
+        print(&mut menu_wr);
     }
 
-    let mut print_buf = String::new();
+    terminal::enable_raw_mode().unwrap();
+    execute!(
+        stdout(),
+        cursor::Hide
+    ).unwrap();
 
-    match &menu.items[i].kind {
-        Label | Button | BackButton | Submenu(_) => {}
-        Scroll { values, selected } => write!(print_buf, " {}", values[*selected]).unwrap(),
-        List   { values, selected } => {
-            for j in 0..values.len() {
-                write!(print_buf, "{}{}{}",
-                       if j == *selected {'['} else {' '},
-                       values[j],
-                       if j == *selected {']'} else {' '},
-                ).unwrap();
-            }
+    while menu.read().unwrap().active {
+        handle_input(&menu);
+    }
+
+    terminal::disable_raw_mode().unwrap();
+    execute!(
+        stdout(),
+        cursor::Show,
+    ).unwrap();
+
+    {
+        let mut menu_wr = menu.write().unwrap();
+        if let PrintState::Small = menu_wr.printed {
+            utils::unprint(menu_wr.items.len());
+        } else if let PrintState::Big = menu_wr.printed {
+            execute!(
+                stdout(),
+                terminal::LeaveAlternateScreen
+            ).unwrap();
         }
-        Numeric { value, .. } => write!(print_buf, " {:.*}", float_printing_precision(*value), value).unwrap(),
+        menu_wr.printed = PrintState::None;
+        menu_wr.exited = true;
     }
-
-    menu.items[i].last_print_len = print_buf.len();
-    print!("{}", print_buf);
 }
-fn print(menu: &mut RwLockWriteGuard<TerminalMenuStruct>) {
-    let term_height = term_height();
-    match menu.status {
-        TMStatus::Normal => {
-            for i in 0..menu.items.len() {
-                if i != 0 {
-                    println!();
-                    move_cursor_to_column_0();
-                }
-                print_item(menu, i);
-            }
-            move_cursor_to_column_0();
-        }
-        TMStatus::Altscreen { topmost, .. } => {
-            clear_screen();
-            move_cursor_to_row(0);
-            print!("  ...");
+
+fn print(menu_wr: &mut TerminalMenuStruct) {
+    if let PrintState::Big = menu_wr.printed {
+        print_big(menu_wr);
+    } else if menu_wr.items.len() + 1 >= utils::term_height() {
+        print_big(menu_wr);
+    } else if let PrintState::None = menu_wr.printed {
+        for i in 0..menu_wr.items.len() {
+            print_item(&menu_wr, i);
             println!();
-            move_cursor_to_column_0();
-            for i in 0..term_height - 2 {
-                print_item(menu, i + topmost);
-                println!();
-                move_cursor_to_column_0();
-            }
-            print!("  ...");
-            move_cursor_to_column_0();
         }
-        _ => panic!("???")
+        menu_wr.printed = PrintState::Small;
     }
 }
-fn unprint(menu: &mut RwLockWriteGuard<TerminalMenuStruct>) {
-    match menu.status {
-        TMStatus::Normal => {
-            move_cursor_up(menu.items.len() - 1);
-            clear_from_cursor_down();
-        }
-        TMStatus::Altscreen { normal_not_printed, .. } => {
-            terminal_alt_screen(false);
-            if !normal_not_printed {
-                menu.status = TMStatus::Normal;
-                unprint(menu);
-                return;
-            }
-        }
-        TMStatus::Inactive => panic!()
+
+fn print_big(menu: &mut TerminalMenuStruct) {
+    if let PrintState::Small = menu.printed {
+        utils::unprint(menu.items.len());
     }
-    menu.status = TMStatus::Inactive;
-}
-fn change_active_item(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, i: usize) {
-    let prev_i = menu.selected;
-    menu.selected = i;
-    let items_len = menu.items.len();
-    match &mut menu.status {
-        TMStatus::Normal => {
-            save_cursor_pos();
-            move_cursor_up(menu.items.len() - prev_i - 1);
-            print!(" \u{8}");
-            restore_cursor_pos();
-            if menu.items.len() <= term_height() {
-                move_cursor_up(menu.items.len() - i - 1);
-                print!(">");
-            }
-            restore_cursor_pos();
-        }
-        TMStatus::Altscreen { topmost, modified, .. } => {
-            *modified = true;
-            let items_on_screen = term_height() - 2;
-            let new_topmost = if i == 0 {
-                0
-            } else if i == items_len - 1 {
-                items_len - items_on_screen
-            } else if i <= *topmost {
-                i - 1
-            } else if i - *topmost > items_on_screen - 2 {
-                i - (items_on_screen - 2)
-            } else {
-                *topmost
-            };
-            if *topmost == new_topmost {
-                move_cursor_to_row(1 + prev_i - *topmost);
-                print!(" ");
-                move_cursor_to_row(1 + i - *topmost);
-                print!(">");
-                flush();
-            } else {
-                *topmost = new_topmost;
-                print(menu);
-            }
-        }
-        _ => panic!()
+    if let PrintState::Small | PrintState::None = menu.printed {
+        queue!(
+            stdout(),
+            terminal::EnterAlternateScreen
+        ).unwrap();
     }
-}
-fn inc_or_dec_active_item(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, up: bool) {
-    let mut i = menu.selected;
-    loop {
-        if up {
-            if i == 0 {
-                i = menu.items.len() - 1;
-            } else {
-                i -= 1;
-            }
-        } else {
-            if i == menu.items.len() - 1 {
-                i = 0;
-            } else {
-                i += 1;
-            }
-        }
-        if let TMIKind::Label = menu.items[i].kind {
-            continue;
-        }
-        break;
+    queue!(
+        stdout(),
+        cursor::MoveTo(0, 0),
+        terminal::Clear(terminal::ClearType::All),
+        style::Print("..."),
+        cursor::MoveToNextLine(1)
+    ).unwrap();
+    let term_height = utils::term_height();
+    if term_height <= 3 {
+        return;
     }
-    change_active_item(menu, i);
-}
-fn inc_or_dec_selection_item(selected: &mut usize, values_len: usize, to_right: bool) {
-    if to_right {
-        if *selected == values_len - 1 {
-            *selected = 0;
-        } else {
-            *selected += 1;
+    let item_count = menu.items.len().min(term_height - 3);
+    let mut top = 0;
+    if menu.selected > item_count / 2 {
+        top = menu.selected - item_count / 2;
+        if top + item_count > menu.items.len() {
+            top = menu.items.len() - item_count;
         }
+    }
+    for i in top..(top + item_count) {
+        print_item(menu, i);
+        queue!(
+            stdout(),
+            cursor::MoveToNextLine(1),
+        ).unwrap();
+    }
+    println!("...");
+    menu.printed = PrintState::Big;
+}
+
+fn print_item(menu: &TerminalMenuStruct, index: usize) {
+    if menu.selected == index {
+        queue!(
+            stdout(),
+            crossterm::style::SetForegroundColor(crossterm::style::Color::Cyan),
+            crossterm::style::Print("> "),
+            crossterm::style::Print(&menu.items[index].name),
+        ).unwrap();
     } else {
-        if *selected == 0 {
-            *selected = values_len - 1;
-        } else {
-            *selected -= 1;
+        queue!(
+            stdout(),
+            crossterm::style::Print("  "),
+            crossterm::style::SetForegroundColor(menu.items[index].color),
+            crossterm::style::Print(&menu.items[index].name)
+        ).unwrap();
+    }
+
+    for _ in menu.items[index].name.len()..menu.longest_name + 5 {
+        queue!(
+            stdout(),
+            crossterm::style::Print(" ")
+        ).unwrap();
+    }
+
+    match &menu.items[index].kind {
+        TMIKind::Label      |
+        TMIKind::Button     |
+        TMIKind::BackButton |
+        TMIKind::Submenu(_) => {}
+        TMIKind::List { values, selected } => {
+            for i in 0..values.len() {
+                if i == *selected {
+                    queue!(
+                        stdout(),
+                        style::Print("["),
+                        style::Print(&values[i]),
+                        style::Print("]")
+                    ).unwrap();
+                } else {
+                    queue!(
+                        stdout(),
+                        style::Print(" "),
+                        style::Print(&values[i]),
+                        style::Print(" ")
+                    ).unwrap();
+                }
+            }
+        }
+        TMIKind::Scroll { values, selected } => {
+            queue!(
+                stdout(),
+                style::Print(" "),
+                style::Print(values.iter().nth(*selected).unwrap()),
+            ).unwrap();
+        }
+        TMIKind::String { value, .. } => {
+            queue!(
+                stdout(),
+                style::Print(" "),
+                style::Print(value)
+            ).unwrap();
+        }
+        TMIKind::Numeric { value, .. } => {
+            queue!(
+                stdout(),
+                style::Print(" "),
+                style::Print(value)
+            ).unwrap()
+        }
+    }
+
+    queue!(
+        stdout(),
+        style::ResetColor
+    ).unwrap();
+
+}
+
+fn handle_input(menu: &TerminalMenu) {
+    while crossterm::event::poll(*utils::INTERVAL).unwrap() {
+        match crossterm::event::read().unwrap() {
+            crossterm::event::Event::Key(key_event) => {
+                let mut menu_wr = menu.write().unwrap();
+                let selected = menu_wr.selected;
+                use crossterm::event::KeyCode::*;
+                match key_event.code {
+                    Up    | Char('w') | Char('k') => {
+                        let new = dec(&menu_wr, selected);
+                        select(&mut menu_wr, new);
+                    },
+                    Down  | Char('s') | Char('j') => {
+                        let new = inc(&menu_wr, selected);
+                        select(&mut menu_wr, new);
+                    },
+                    Left  | Char('a') | Char('h') => dec_value(&mut menu_wr),
+                    Right | Char('d') | Char('l') => inc_value(&mut menu_wr),
+                    Enter | Char(' ') => handle_enter(&mut menu_wr),
+                    Esc   | Char('q') => {
+                        menu_wr.active = false;
+                        menu_wr.exit = true;
+                        return;
+                    },
+                    _ => {}
+                }
+            }
+            event::Event::Resize(_, _) => {
+                print(&mut menu.write().unwrap());
+            }
+            _ => {}
         }
     }
 }
-fn update_item_value(mut menu: RwLockWriteGuard<TerminalMenuStruct>) {
-    save_cursor_pos();
-    match menu.status {
-        TMStatus::Normal => {
-            move_cursor_up(menu.items.len() - menu.selected - 1);
-        }
-        TMStatus::Altscreen { topmost, normal_not_printed, .. } => {
-            move_cursor_to_row(1 + menu.selected - topmost);
-            menu.status = TMStatus::Altscreen { topmost, normal_not_printed, modified: true };
-        }
-        TMStatus::Inactive => panic!()
+
+fn print_in_place(menu: &TerminalMenuStruct, index: usize) {
+    queue!(
+        stdout(),
+        cursor::SavePosition,
+        cursor::MoveUp((menu.items.len() - index) as u16),
+        terminal::Clear(terminal::ClearType::UntilNewLine)
+    ).unwrap();
+    print_item(menu, index);
+    queue!(
+        stdout(),
+        cursor::RestorePosition
+    ).unwrap();
+}
+
+fn select(menu: &mut TerminalMenuStruct, index: usize) {
+    let old_active = menu.selected;
+    menu.selected = index;
+    if let PrintState::Small = menu.printed {
+        print_in_place(menu, old_active);
+        print_in_place(menu, index);
+    } else {
+        print_big(menu);
     }
+    stdout().flush().unwrap();
+}
 
-    //TODO: maybe fix this magic number?
-    move_cursor_right(menu.longest_name + 5);
+fn inc(menu: &TerminalMenuStruct, mut index: usize) -> usize {
+    index += 1;
+    if index == menu.items.len() {
+        index = 0;
+    }
+    if let TMIKind::Label = menu.items[index].kind {
+        inc(menu, index)
+    } else {
+        index
+    }
+}
 
-    let mut print_buf = String::new();
+fn dec(menu: &TerminalMenuStruct, mut index: usize) -> usize {
+    if index == 0 {
+         index = menu.items.len() - 1;
+    } else {
+        index -= 1
+    }
+    if let TMIKind::Label = menu.items[index].kind {
+        dec(menu, index)
+    } else {
+        index
+    }
+}
 
-    let _selected = menu.selected;
-    let menu_selected_item = &mut menu.items[_selected];
-    match &mut menu_selected_item.kind {
-        Scroll { selected, values} => {
-            write!(print_buf, " {}", values[*selected]).unwrap();
+fn handle_enter(menu: &mut TerminalMenuStruct) {
+    let item_count = menu.items.len();
+    match &mut menu.items[menu.selected].kind {
+        TMIKind::Button => {
+            menu.exit = true;
+            menu.active = false;
         }
-        List { selected, values } => {
-            for i in 0..values.len() {
-                write!(print_buf, "{}{}{}",
-                       if i == *selected { '[' } else { ' ' },
-                       values[i],
-                       if i == *selected { ']' } else { ' ' },
+        TMIKind::BackButton => {
+            menu.active = false;
+        }
+        TMIKind::Scroll { selected, values } |
+        TMIKind::List { selected, values } => {
+            let temp_menu =
+                crate::menu(values.iter().enumerate().map(|(i, s)|
+                    if i == *selected {
+                        back_button(s).colorize(style::Color::Green)
+                    } else {
+                        back_button(s)
+                    }
+                ).collect());
+            if let PrintState::Small = menu.printed {
+                terminal::disable_raw_mode().unwrap();
+                utils::unprint(item_count);
+                menu.printed = PrintState::None;
+            }
+
+            if let PrintState::Big = menu.printed {
+                temp_menu.write().unwrap().printed = PrintState::Big;
+            }
+
+            crate::run(&temp_menu);
+
+            *selected = temp_menu.read().unwrap().selected;
+
+            print(menu);
+            terminal::enable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Hide
+            ).unwrap();
+        }
+        TMIKind::String { value, allow_empty } => {
+            if let PrintState::Big = menu.printed {
+                queue!(
+                    stdout(),
+                    cursor::MoveToNextLine(100)
+                ).unwrap();
+            }
+            print!(": ");
+            stdout().flush().unwrap();
+            terminal::disable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Show,
+            ).unwrap();
+            let mut input = String::new();
+            stdin().read_line(&mut input).unwrap();
+            input.pop().unwrap();
+            terminal::enable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Hide,
+            ).unwrap();
+            utils::unprint(1);
+            if *allow_empty || !input.is_empty() {
+                *value = input;
+            }
+            if let PrintState::Big = menu.printed  {
+                print(menu);
+            } else {
+                print_in_place(menu, menu.selected);
+                stdout().flush().unwrap();
+            }
+        }
+        TMIKind::Numeric { value, step, min, max } => {
+            if let PrintState::Big = menu.printed {
+                queue!(
+                    stdout(),
+                    cursor::MoveToNextLine(100)
+                ).unwrap();
+            }
+            utils::number_range_indicator(*step, *min, *max);
+            stdout().flush().unwrap();
+            terminal::disable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Show,
+            ).unwrap();
+            let mut input = String::new();
+            stdin().read_line(&mut input).unwrap();
+            terminal::enable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Hide,
+            ).unwrap();
+            utils::unprint(1);
+            if let Ok(input) = input.trim().parse() {
+                if utils::value_valid(input, *step, *min, *max) {
+                    *value = input;
+                }
+            }
+            if let PrintState::Big = menu.printed  {
+                print(menu);
+            } else {
+                print_in_place(menu, menu.selected);
+                stdout().flush().unwrap();
+            }
+        }
+        TMIKind::Submenu(submenu) => {
+            if let PrintState::Small = menu.printed {
+                terminal::disable_raw_mode().unwrap();
+                utils::unprint(item_count);
+                menu.printed = PrintState::None;
+            }
+
+            if let PrintState::Big = menu.printed {
+                submenu.write().unwrap().printed = PrintState::Big;
+            }
+
+            crate::run(submenu);
+
+            if submenu.read().unwrap().exit {
+                menu.exit = true;
+                menu.active = false;
+            } else {
+                print(menu);
+                terminal::enable_raw_mode().unwrap();
+                execute!(
+                    stdout(),
+                    cursor::Hide
                 ).unwrap();
             }
         }
-        Numeric { value, .. } => {
-            write!(print_buf, " {:.*}", float_printing_precision(*value), value).unwrap();
-        }
-        _ => panic!("??")
-    }
-
-    print!("{}", print_buf);
-
-    let new_print_len = print_buf.len();
-    for _ in new_print_len..menu_selected_item.last_print_len {
-        print!(" ");
-    }
-    menu_selected_item.last_print_len = new_print_len;
-
-    restore_cursor_pos();
-}
-fn inc_or_dec_item(menu: &TerminalMenu, to_right: bool) {
-    let mut menu = menu.write().unwrap();
-
-    let _selected = menu.selected;
-    match &mut menu.items[_selected].kind {
-        Label | Button | BackButton | Submenu(_) => { return }
-        Scroll { selected, values} |
-        List   { selected, values } => {
-            inc_or_dec_selection_item(selected, values.len(), to_right);
-        }
-        Numeric { value, step, min, max } => {
-            if let Some(step) = step {
-                let min = min.unwrap_or(std::f64::MIN);
-                let max = max.unwrap_or(std::f64::MAX);
-                if to_right {
-                    if *value == max {
-                        *value = max;
-                        return;
-                    }
-                    *value += *step;
-                } else {
-                    if *value == min {
-                        *value = min;
-                        return;
-                    }
-                    *value -= *step;
-                }
-            } else {
-                return;
-            }
-        }
-    }
-
-    update_item_value(menu);
-}
-
-fn handle_enter(menu: &TerminalMenu) {
-    let mut menu = menu.write().unwrap();
-    let mut update_value = false;
-    let is_altscreen = if let TMStatus::Altscreen { .. } = menu.status { true } else { false };
-
-    let _selected = menu.selected;
-    if let Numeric { value, step, min, max } = &mut menu.items[_selected].kind {
-        if is_altscreen {
-            move_cursor_to_bottom();
-        }
-        terminal_append_line();
-        let prefix = number_range_indicator(*step, *min, *max);
-        print!("{}", prefix);
-        flush();
-
-        cursor_visibility(true);
-        loop {
-            let mut input = String::new();
-            number_input(&mut input);
-
-            if input.is_empty() {
-                break;
-            }
-
-            if let Ok(v) = input.parse() {
-                if value_valid(v, *step, *min, *max) {
-                    *value = v;
-                    update_value = true;
-                    break;
-                } else {
-                    terminal_append_line();
-                    print!("Number not in range! Press enter to cancel.");
-                }
-            } else {
-                terminal_append_line();
-                print!(    "Not a valid number! Press enter to cancel. ");
-            }
-
-            move_cursor_up(1);
-            move_cursor_to_column_0();
-            move_cursor_right(prefix.len());
-            for _ in 0..input.len() {
-                print!(" ");
-            }
-            move_cursor_left(input.len());
-        }
-        cursor_visibility(false);
-
-        if is_altscreen {
-            print(&mut menu);
-        } else {
-            move_cursor_to_column_0();
-            clear_from_cursor_down();
-            move_cursor_up(1);
-        }
-    }
-    else {
-        let mut active = false;
-        let mut temporary_menu = None;
-        let mut item_changed = false;
-        match &menu.items[_selected].kind {
-            Button | BackButton => {}
-            Submenu(submenu) => {
-                temporary_menu = Some(submenu.clone());
-            }
-            Scroll { values, selected } |
-            List   { values, selected } => {
-                if values.len() != 1 {
-                    let mut items = Vec::new();
-                    for (i, v) in values.iter().enumerate() {
-                        if i == *selected {
-                            items.push(scroll(v, vec!["(Selected)"]));
-                        } else {
-                            items.push(button(v));
-                        }
-                    }
-                    let tm = crate::menu(items);
-                    get_mutable_instance(&tm).selected = *selected;
-                    temporary_menu = Some(tm);
-                    item_changed = true;
-                }
-            }
-            _ => active = true
-        }
-        menu.active = active;
-        menu.temporary_menu = temporary_menu;
-        menu.item_changed = item_changed;
-    }
-
-    if update_value {
-        update_item_value(menu);
-    }
-}
-fn handle_key_event(menu: &TerminalMenu, key_event: event::KeyEvent) {
-    use event::KeyCode::*;
-    match key_event.code {
-        Up | Char('w') | Char('k') => inc_or_dec_active_item(&mut menu.write().unwrap(), true),
-        Down | Char('s') | Char('j') => inc_or_dec_active_item(&mut menu.write().unwrap(), false),
-        Left  | Char('a') | Char('h') => inc_or_dec_item(&menu, false),
-        Right | Char('d') | Char('l') => inc_or_dec_item(&menu, true),
-        Enter | Char(' ') => handle_enter(&menu),
-        Esc | Char('q') => { menu.write().unwrap().exited = true; term_mode(false) },
         _ => {}
     }
 }
-fn calc_topmost(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: usize, topmost: &mut usize) {
-    let min_topmost = if menu.selected < (term_height - 4) { 0 } else { menu.selected - (term_height - 4) };
-    let max_topmost = (menu.items.len() - 1) - (term_height - 3);
-    if *topmost < min_topmost {
-        *topmost = min_topmost;
-    }
-    if *topmost > max_topmost {
-        *topmost = max_topmost;
-    }
-}
-fn handle_resize(menu: &mut RwLockWriteGuard<TerminalMenuStruct>, term_height: usize) {
-    if menu.items.len() > term_height - 1 {
-        match menu.status {
-            TMStatus::Inactive => {
-                let mut topmost = 0;
-                calc_topmost(menu, term_height, &mut topmost);
-                menu.status = TMStatus::Altscreen { topmost, normal_not_printed: true, modified: false };
-                terminal_alt_screen(true);
-                print(menu);
-            }
-            TMStatus::Normal => {
-                let mut topmost = 0;
-                calc_topmost(menu, term_height, &mut topmost);
-                menu.status = TMStatus::Altscreen { topmost, normal_not_printed: false, modified: false };
-                terminal_alt_screen(true);
-                print(menu);
-            }
-            TMStatus::Altscreen { mut topmost, normal_not_printed, modified } => {
-                calc_topmost(menu, term_height, &mut topmost);
-                menu.status = TMStatus::Altscreen { topmost, normal_not_printed, modified };
-                print(menu);
-            }
-        }
-    } else {
-        match menu.status {
-            TMStatus::Inactive => {
-                menu.status = TMStatus::Normal;
-                print(menu);
-            }
-            TMStatus::Normal => {}
-            TMStatus::Altscreen { normal_not_printed, modified, .. } => {
-                if modified && !normal_not_printed {
-                    unprint(menu);
-                } else {
-                    terminal_alt_screen(false);
-                }
-                menu.status = TMStatus::Normal;
-                if modified || normal_not_printed {
-                    print(menu);
-                }
-            }
-        }
-    }
-}
-fn handle_temp_menu(menu: &TerminalMenu, temp_menu: TerminalMenu) -> bool {
-    run(temp_menu.clone());
-    if menu.read().unwrap().item_changed {
-        let menu = &mut menu.write().unwrap();
-        let _selected = menu.selected;
-        match &mut &mut menu.items[_selected].kind {
-            Scroll { selected, .. } |
-            List   { selected, .. } => {
-                *selected = selected_item_index(&temp_menu);
-            }
-            _ => panic!("??? code broken dude")
-        }
-    } else {
-        let temp_menu = temp_menu.read().unwrap();
-        if let Button = temp_menu.items[temp_menu.selected].kind {
-            return false;
-        }
-    }
-    true
-}
-fn term_mode(on: bool) {
-    terminal_raw_mode(on);
-    cursor_visibility(!on);
-}
-pub fn run(menu: TerminalMenu) {
 
-    //set active
-    {
-        let mut menu = menu.write().unwrap();
-        menu.active = true;
-        menu.exited = false;
-    }
+fn inc_value(menu: &mut TerminalMenuStruct) {
+    match &mut menu.items[menu.selected].kind {
+        TMIKind::Scroll { values, selected } |
+        TMIKind::List   { values, selected }=> {
+            *selected += 1;
+            if *selected == values.len() {
+                *selected = 0;
+            }
 
-    term_mode(true);
-
-    //print initially
-    {
-        let mut menu = menu.write().unwrap();
-        let mut longest_name = 0;
-        for item in &menu.items {
-            match item.kind {
-                Scroll { .. } | List { .. } | Numeric { .. } => {
-                    if item.name.len() > longest_name {
-                        longest_name = item.name.len();
+        }
+        TMIKind::Numeric { value, step, min, max } => {
+            if let Some(step) = step {
+                *value += *step;
+                if let Some(max) = max {
+                    if *value > *max {
+                        *value = *max;
                     }
                 }
-                _ => {}
+
             }
         }
-        menu.longest_name = longest_name;
-        handle_resize(&mut menu, term_height());
+        _ => return
     }
+    if let PrintState::Big = menu.printed {
+        print(menu);
+    } else {
+        print_in_place(&menu, menu.selected);
+        stdout().flush().unwrap();
+    }
+}
 
-    while menu.read().unwrap().active {
-        if event::poll(SECOND.clone()).unwrap() {
-            use event::Event::*;
-            match event::read().unwrap() {
-                Key(key_event) => handle_key_event(&menu, key_event),
-                Resize(_, term_height) => handle_resize(&mut menu.write().unwrap(), term_height as usize),
-                Mouse(_) => {}
+fn dec_value(menu: &mut TerminalMenuStruct) {
+    match &mut menu.items[menu.selected].kind {
+        TMIKind::Scroll { values, selected } |
+        TMIKind::List   { values, selected }=> {
+            if *selected == 0 {
+                *selected = values.len() - 1;
+            } else {
+                *selected -= 1;
             }
         }
-    }
-
-    let temp_menu = {
-        let mut menu = menu.write().unwrap();
-        unprint(&mut menu);
-        menu.temporary_menu.as_ref().map(|m| m.clone())
-    };
-
-    term_mode(false);
-
-    if let Some(temp_menu) = temp_menu {
-        if handle_temp_menu(&menu, temp_menu) {
-            run(menu);
-            return;
+        TMIKind::Numeric { value, step, min, max } => {
+            if let Some(step) = step {
+                *value -= *step;
+                if let Some(min) = min {
+                    if *value < *min {
+                        *value = *min;
+                    }
+                }
+            }
         }
+        _ => return
     }
-    menu.write().unwrap().exited = true;
+    if let PrintState::Big = menu.printed {
+        print(menu);
+    } else {
+        print_in_place(&menu, menu.selected);
+        stdout().flush().unwrap();
+    }
 }

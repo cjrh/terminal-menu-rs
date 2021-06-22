@@ -1,44 +1,49 @@
 fn main() {
 
-    //it might be a good idea to perform terminal-menu stuff
-    //in separate functions from other code
-    //so that you can use the following line without much confusion:
+    //useful when creating a menu
     use terminal_menu::*;
 
     //create the menu
-    let menu = menu(vec![
+    let my_menu = menu(vec![
 
-        //run the example and try these out
-        label("(use arrow keys or wasd)"),
-        scroll("Selection", vec!["First Option", "Second Option", "Third Option"]),
-        list("Do Something", vec!["Yes", "No"]),
-        numeric("Numeric", 2.75, Some(0.25), Some(-7.25), Some(11.5)),
-        submenu("Submenu", {
-            let mut submenu_items = vec![];
-            submenu_items.push(label("Long menu"));
-            for i in 0..25 {
-                submenu_items.push(scroll(format!("Item{}", i), vec!["A", "B", "C"]));
-            }
-            submenu_items.push(back_button("Back"));
-            submenu_items.push(button("Exit"));
-            submenu_items
-        }),
-        button("Exit")
+        // the first argument of the terminal-menu item functions is the name
+        // which will be displayed. Values are also pulled with this name.
+
+        // label: Title or separator, can not be selected
+        label("--------------------------"),
+        label("Use arrow keys or wasd"),
+        label("Enter to use, esc to quit!"),
+        label("--------------------------"),
+
+        // list: display values in a list like so: (selected is in brackets)
+        // [value 1]  value 2  value 3
+        list("My List", vec!["First", "Second", "Third"]),
+
+        // scroll: scroll through values and display the selected one
+        scroll("My Scroll", vec!["Foo", "Bar"]),
+
+        // string: any string of characters
+        // set the last param to true if empty strings should be allowed
+        string("My String", "Default", false),
+
+        // numeric: select a number, parameters got like so
+        // default value, step, minimum, maximum
+        numeric("My Numeric", 0.0, Some(0.5), Some(-10.0), Some(5.0)),
+
+        // button: Exit all menus
+        button("My Exit")
+
     ]);
 
-    //open the menu
-    activate(&menu);
+    //display the menu and wait for exit
+    run(&my_menu);
 
-    //other work can be done here
+    //pull values
+    println!("{}", mut_menu(&my_menu).selection_value("My List"));
+    println!("{}", mut_menu(&my_menu).selection_value("My Scroll"));
+    println!("{}", mut_menu(&my_menu).selection_value("My String"));
+    println!("{}", mut_menu(&my_menu).numeric_value("My Numeric"));
 
-    //wait for the menu to exit
-    wait_for_exit(&menu);
-
-    //read values
-    println!("Selection:     {}", selection_value(&menu, "Selection"));
-    println!("Do Something:  {}", selection_value(&menu, "Do Something"));
-    println!("Numeric:       {}", numeric_value(&menu, "Numeric"));
-
-    let submenu = get_submenu(&menu, "Submenu");
-    println!("Submenu.Item0: {}", selection_value(&submenu, "Item0"));
+    //name of the value which was selected on exit
+    println!("{}", mut_menu(&my_menu).selected_item_name());
 }
