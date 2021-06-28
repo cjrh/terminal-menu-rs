@@ -153,11 +153,12 @@ pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalM
 }
 
 /// Make a terminal-menu item which you can enter a string of characters to.
+/// Empty strings may be enabled with a flag.
 /// # Example
 /// ```
 /// use terminal_menu::{menu, string, run, mut_menu};
 /// let menu = menu(vec![
-///     string("My Strings Name", "Default Value")
+///     string("My Strings Name", "Default Value", /* allow empty string */ false)
 /// ]);
 /// run(&menu);
 /// println!("My Strings Value: {}", mut_menu(&menu).selection_value("My Strings Name"));
@@ -275,22 +276,28 @@ impl TerminalMenuStruct {
     /// Returns the name of the selected menu item.
     /// # Example
     /// ```
-    /// use terminal_menu::{TerminalMenu, run, mut_menu};
-    /// let my_menu: TerminalMenu = ... ;
+    /// use terminal_menu::{menu, button, run, mut_menu};
+    /// let my_menu = menu(vec![
+    ///     button("a"),
+    ///     button("b"),
+    /// ]);
     /// run(&my_menu);
-    /// println!("selected item name: {}", mut_menu(&my_menu).selected_item_name());
+    /// println!("selected item name: {}", mut_menu(&my_menu).selected_item_name()); //"a" or "b"
     /// ```
     pub fn selected_item_name(&self) -> &str {
         &self.items[self.selected].name
     }
 
-    /// Returns the index of the selected menu item.
+    /// Returns the selected item as an index of the items vec.
     /// # Example
     /// ```
-    /// use terminal_menu::{TerminalMenu, run, mut_menu};
-    /// let my_menu: TerminalMenu = ... ;
+    /// use terminal_menu::{menu, button, run, mut_menu};
+    /// let my_menu = menu(vec![
+    ///     button("a"),
+    ///     button("b"),
+    /// ]);
     /// run(&my_menu);
-    /// println!("selected item index: {}", mut_menu(&my_menu).selected_item_index());
+    /// println!("selected item index: {}", mut_menu(&my_menu).selected_item_index()); // 0 or 1
     /// ```
     pub fn selected_item_index(&self) -> usize {
         self.selected
@@ -397,13 +404,56 @@ impl TerminalMenuStruct {
 /// Create a new terminal-menu.
 /// # Example
 /// ```
-/// use terminal_menu::{menu, list, button, run, mut_menu};
+/// //useful when creating a menu
+/// use terminal_menu::*;
+/// //create the menu
 /// let my_menu = menu(vec![
-///     list("Do Stuff", vec!["Yes", "No"]),
-///     button("Exit")
+///
+///     // the first argument of the terminal-menu item functions is the name
+///     // which will be displayed. Values are also pulled with this name.
+///
+///     // label: Title or separator, can not be selected
+///     label("--------------------------"),
+///     label("Use arrow keys or wasd"),
+///     label("Enter to use, esc to quit!"),
+///     label("--------------------------"),
+///
+///     // list: display values in a list like so: (selected is in brackets)
+///     // [value 1]  value 2  value 3
+///     list("My List", vec!["First", "Second", "Third"]),
+///
+///     // scroll: scroll through values and display the selected one
+///     scroll("My Scroll", vec!["Foo", "Bar"]),
+///
+///     // string: any string of characters
+///     // set the last param to true if empty strings should be allowed
+///     string("My String", "Default", false),
+///
+///     // numeric: select a number, parameters got like so
+///     // default value, step, minimum, maximum
+///     numeric("My Numeric", 0.0, Some(0.5), Some(-10.0), Some(5.0)),
+///
+///     // button: Exit all menus
+///     button("My Exit")
+///
 /// ]);
+///
+/// //display the menu and wait for exit
 /// run(&my_menu);
-/// println!("do or don't do stuff: {}", mut_menu(&my_menu).selection_value("Do Stuff"));
+///
+/// {
+///     //get a mutable instance
+///     let my_mut_menu = mut_menu(&my_menu);
+///
+///     //pull values
+///     println!("{}", my_mut_menu.selection_value("My List"));
+///     println!("{}", my_mut_menu.selection_value("My Scroll"));
+///     println!("{}", my_mut_menu.selection_value("My String"));
+///     println!("{}", my_mut_menu.numeric_value("My Numeric"));
+///
+///     //name of the value which was selected on exit
+///     println!("{}", my_mut_menu.selected_item_name());
+/// }
 /// ```
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
     for i in 0..items.len() {
@@ -476,9 +526,13 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
 
 /// For compatibility with older versions.
 /// See `mut_menu()`
-/*fn get_mutable_instance(menu: &TerminalMenu) {
-    mut_menu(menu);
-}*/
+#[deprecated(
+    since="2.0.0",
+    note="use the mut_menu function instead",
+)]
+fn get_mutable_instance(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
+    mut_menu(menu)
+}
 
 /// Activate (open) the menu.
 /// Menu will deactivate when deactivated manually or button items are pressed.
@@ -525,11 +579,18 @@ fn activate_basic(menu: &TerminalMenu) {
 /// Menu will deactivate when deactivated manually or button items are pressed.
 /// # Example
 /// ```
-/// use terminal_menu::{TerminalMenu, menu, try_activate_fancy};
-/// let my_menu = menu(...);
+/// use terminal_menu::{TerminalMenu, menu, list, try_activate_fancy};
+/// let my_menu = menu(vec![
+///     list("galadriel", vec!["frodo", "bilbo"])
+///     numeric("boo", 4.67, Some(3.0), None, None)
+/// ]);
 /// match try_activate_fancy(&my_menu) {
-///     Ok(())  => { ... }
-///     Err(()) => { ... }
+///     Ok(())  => {
+///         //code on success
+///     }
+///     Err(()) => {
+///         //code on error
+///     }
 /// }
 /// ```
 pub fn try_activate_fancy(menu: &TerminalMenu) -> Result<(), ()> {
@@ -546,8 +607,11 @@ pub fn try_activate_fancy(menu: &TerminalMenu) -> Result<(), ()> {
 /// Deactivate (exit) a menu manually.
 /// # Example
 /// ```
-/// use terminal_menu::{TerminalMenu, menu, activate, deactivate};
-/// let my_menu = menu(...);
+/// use terminal_menu::{menu, numeric, activate, deactivate};
+/// let my_menu = menu(vec![
+///     list("galadriel", vec!["frodo", "bilbo"])
+///     numeric("boo", 4.67, Some(3.0), None, None)
+/// ]);
 /// activate(&my_menu);
 ///
 /// //do something here
@@ -563,7 +627,10 @@ pub fn deactivate(menu: &TerminalMenu) {
 /// # Example
 /// ```
 /// use terminal_menu::{TerminalMenu, menu, activate, deactivate, wait_for_exit};
-/// let my_menu = menu(...);
+/// let my_menu = menu(vec![
+///     list("galadriel", vec!["frodo", "bilbo"])
+///     numeric("boo", 4.67, Some(3.0), None, None)
+/// ]);
 /// activate(&my_menu);
 ///
 /// //do something here
@@ -583,7 +650,10 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
 /// # Example
 /// ```
 /// use terminal_menu::{TerminalMenu, menu, run};
-/// let my_menu = menu(...);
+/// let my_menu = menu(vec![
+///     list("galadriel", vec!["frodo", "bilbo"])
+///     numeric("boo", 4.67, Some(3.0), None, None)
+/// ]);
 /// run(&my_menu);
 /// ```
 pub fn run(menu: &TerminalMenu) {
@@ -606,10 +676,17 @@ fn run_basic(menu: &TerminalMenu) {
 /// # Example
 /// ```
 /// use terminal_menu::{TerminalMenu, menu, try_run_fancy};
-/// let my_menu = menu(...) ;
+/// let my_menu = menu(vec![
+///     list("galadriel", vec!["frodo", "bilbo"])
+///     numeric("boo", 4.67, Some(3.0), None, None)
+/// ]);
 /// match try_run_fancy(&my_menu) {
-///     Ok(())  => { ... }
-///     Err(()) => { ... }
+///     Ok(())  => {
+///         //code on success
+///     }
+///     Err(()) => {
+///         //code on error
+///     }
 /// }
 /// ```
 pub fn try_run_fancy(menu: &TerminalMenu) -> Result<(), ()> {

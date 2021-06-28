@@ -1,3 +1,7 @@
+///
+/// Explains how menu can be used asynchronously.
+///
+
 fn main() {
 
     use terminal_menu::*;

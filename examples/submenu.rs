@@ -1,3 +1,7 @@
+///
+/// Explains how submenus work.
+///
+
 fn main() {
 
     use terminal_menu::*;
@@ -23,5 +27,6 @@ fn main() {
 
     run(&menu);
 
-
+    //pull value from inside the submenu
+    println!("{}", mut_menu())
 }

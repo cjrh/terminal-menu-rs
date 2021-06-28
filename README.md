@@ -18,15 +18,4 @@ Display simple menus on the terminal.
 - added basic menu variant for unsupported terminals
 - bugfixes
 
-### v1.9.7
-
-- scrolling now possible when items do not fit on the screen
-- updated to crossterm 0.17.3
-- fixed bug when menu would break when resizing terminal in Windows
-- reformatted code
-- mutating the menu (when not active) can now be done safely with get_mutable_instance()
-- numeric values can now be typed in
-- other small features
-- thanks to Vectole from gitlab for ideas on how to improve the crate
-
 [kriikkula.com](https://kriikkula.com/)

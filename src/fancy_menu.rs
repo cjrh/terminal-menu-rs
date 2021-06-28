@@ -409,7 +409,7 @@ fn inc_value(menu: &mut TerminalMenuStruct) {
             }
 
         }
-        TMIKind::Numeric { value, step, min, max } => {
+        TMIKind::Numeric { value, step, max, .. } => {
             if let Some(step) = step {
                 *value += *step;
                 if let Some(max) = max {
@@ -417,7 +417,6 @@ fn inc_value(menu: &mut TerminalMenuStruct) {
                         *value = *max;
                     }
                 }
-
             }
         }
         _ => return
@@ -440,7 +439,7 @@ fn dec_value(menu: &mut TerminalMenuStruct) {
                 *selected -= 1;
             }
         }
-        TMIKind::Numeric { value, step, min, max } => {
+        TMIKind::Numeric { value, step, min, .. } => {
             if let Some(step) = step {
                 *value -= *step;
                 if let Some(min) = min {

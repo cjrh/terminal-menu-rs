@@ -1,3 +1,7 @@
+///
+/// A long menu.
+///
+
 fn main() {
 
     use terminal_menu::*;
