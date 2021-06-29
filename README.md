@@ -4,6 +4,7 @@ Display simple menus on the terminal.
 ```
 > Selection       Second Option
   Do Something   [Yes] No
+  Your Name       Samuel          
   Numeric         5.25
   Submenu    
   Exit     
@@ -19,3 +20,10 @@ Display simple menus on the terminal.
 - bugfixes
 
 [kriikkula.com](https://kriikkula.com/)
+
+#### Migrating from v1.9.7
+- `get_mutable_instace` was renamed to `mut_menu`
+- Rewrite helper functions  
+from: `selection_value(&menu, "foo")`  
+to: `mut_menu(&menu).selection_value("foo")`
+- See the examples! Lot's of good stuff there!

@@ -48,7 +48,7 @@ pub fn run(menu: TerminalMenu) {
 fn print(menu_wr: &mut TerminalMenuStruct) {
     if let PrintState::Big = menu_wr.printed {
         print_big(menu_wr);
-    } else if menu_wr.items.len() + 1 >= utils::term_height() {
+    } else if menu_wr.items.len() + 1 >= utils::term_height() || cfg!(windows) {
         print_big(menu_wr);
     } else if let PrintState::None = menu_wr.printed {
         for i in 0..menu_wr.items.len() {

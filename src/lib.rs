@@ -34,7 +34,7 @@ pub struct TerminalMenuItem {
 
 
 /// Make a label terminal-menu item.
-/// Can not be selected.
+/// Can't be selected.
 /// Useful for example as a title, separator, or help text.
 /// # Example
 /// ```
@@ -407,65 +407,39 @@ impl TerminalMenuStruct {
             Some(a) => Some(a)
         }
     }
-    
+
+    /// Returns true if menu was exited with 'q' or esc
+    /// # Example
+    /// ```
+    /// use terminal_menu::{menu, button, run, mut_menu};
+    /// let menu = menu(vec![
+    ///     button("button")
+    /// ]);
+    /// run(&menu);
+    ///
+    /// // true if esc, false if button
+    /// println!("{}", mut_menu(&menu).canceled());
+    /// ```
     pub fn canceled(&self) -> bool {
         self.canceled
     }
 
 }
 
-/// Create a new terminal-menu.
+/// Create a terminal-menu. See the examples for more.
 /// # Example
 /// ```
-/// //useful when creating a menu
-/// use terminal_menu::*;
-/// //create the menu
+/// use terminal_menu::*
 /// let my_menu = menu(vec![
-///
-///     // the first argument of the terminal-menu item functions is the name
-///     // which will be displayed. Values are also pulled with this name.
-///
-///     // label: Title or separator, can not be selected
-///     label("--------------------------"),
-///     label("Use arrow keys or wasd"),
-///     label("Enter to use, esc to quit!"),
-///     label("--------------------------"),
-///
-///     // list: display values in a list like so: (selected is in brackets)
-///     // [value 1]  value 2  value 3
-///     list("My List", vec!["First", "Second", "Third"]),
-///
-///     // scroll: scroll through values and display the selected one
-///     scroll("My Scroll", vec!["Foo", "Bar"]),
-///
-///     // string: any string of characters
-///     // set the last param to true if empty strings should be allowed
-///     string("My String", "Default", false),
-///
-///     // numeric: select a number, parameters got like so
-///     // default value, step, minimum, maximum
-///     numeric("My Numeric", 0.0, Some(0.5), Some(-10.0), Some(5.0)),
-///
-///     // button: Exit all menus
-///     button("My Exit")
-///
+///     label("label"),
+///     button("button"),
+///     scroll("scroll", vec!["a", "b", "c"])
 /// ]);
-///
-/// //display the menu and wait for exit
 /// run(&my_menu);
-///
 /// {
-///     //get a mutable instance
-///     let my_mut_menu = mut_menu(&my_menu);
-///
-///     //pull values
-///     println!("{}", my_mut_menu.selection_value("My List"));
-///     println!("{}", my_mut_menu.selection_value("My Scroll"));
-///     println!("{}", my_mut_menu.selection_value("My String"));
-///     println!("{}", my_mut_menu.numeric_value("My Numeric"));
-///
-///     //name of the value which was selected on exit
-///     println!("{}", my_mut_menu.selected_item_name());
+///     let mm = mut_menu(&my_menu);
+///     println!("{}", mm.selection_value("scroll"));
+///     println!("{}", mm.selected_item_name());
 /// }
 /// ```
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
@@ -489,7 +463,7 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
     panic!("no selectable items");
 }
 
-/// Returns true if the menu is inactive and has exited
+/// Returns true if the menu is inactive and has exited.
 /// # Example
 /// ```
 /// use terminal_menu::{menu, numeric, string, run, activate, has_exited, mut_menu};
@@ -537,16 +511,6 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
         panic!("Cannot call mutable_instance if has_exited() is not true");
     }
     menu.write().unwrap()
-}
-
-/// For compatibility with older versions.
-/// See `mut_menu()`
-#[deprecated(
-    since="2.0.0",
-    note="use the mut_menu function instead",
-)]
-fn get_mutable_instance(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
-    mut_menu(menu)
 }
 
 /// Activate (open) the menu.
