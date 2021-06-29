@@ -190,9 +190,6 @@ pub fn numeric<T: Into<String>>(name: T, default: f64, step: Option<f64>, min: O
     if !utils::value_valid(default, step, min, max) {
         panic!("invalid default value");
     }
-    if !utils::step_valid(step, min, max) {
-        panic!("invalid step");
-    }
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Numeric {
@@ -223,10 +220,12 @@ pub fn numeric<T: Into<String>>(name: T, default: f64, step: Option<f64>, min: O
 ///     .get_submenu("My Submenus Name")
 ///     .selection_value("List"));
 /// ```
-pub fn submenu<T: Into<String>>(name: T, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
+pub fn submenu<T: Into<String> + Clone>(name: T, items: Vec<TerminalMenuItem>) -> TerminalMenuItem {
+    let menu = menu(items);
+    menu.write().unwrap().name = Some(name.clone().into());
     TerminalMenuItem {
         name: name.into(),
-        kind: TMIKind::Submenu(menu(items)),
+        kind: TMIKind::Submenu(menu),
         color: Color::White
     }
 }
@@ -262,13 +261,15 @@ pub(crate) enum PrintState {
 }
 
 pub struct TerminalMenuStruct {
+    name: Option<String>,
     pub items: Vec<TerminalMenuItem>,
     selected: usize,
     active: bool,
     exited: bool,
 
     longest_name: usize,
-    exit: bool,
+    exit: Option<String>,
+    canceled: bool,
     printed: PrintState,
 }
 impl TerminalMenuStruct {
@@ -399,6 +400,18 @@ impl TerminalMenuStruct {
         panic!("Item not found or is wrong kind");
     }
 
+    /// Returns the menu (or submenu) which was active on deactivation.
+    pub fn get_latest_menu_name(&mut self) -> Option<&str> {
+        match &self.exit {
+            None => None,
+            Some(a) => Some(a)
+        }
+    }
+    
+    pub fn canceled(&self) -> bool {
+        self.canceled
+    }
+
 }
 
 /// Create a new terminal-menu.
@@ -460,13 +473,15 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
         if let TMIKind::Label = items[i].kind {
         } else {
             return Arc::new(RwLock::new(TerminalMenuStruct {
+                name: None,
                 items,
                 selected: i,
                 active: false,
                 exited: true,
 
                 longest_name: 0,
-                exit: false,
+                exit: None,
+                canceled: false,
                 printed: PrintState::None,
             }))
         }

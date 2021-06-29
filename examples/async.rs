@@ -1,29 +1,22 @@
 ///
-/// Explains how menu can be used asynchronously.
+/// Use menus asynchronously.
 ///
 
 fn main() {
-
-    use terminal_menu::*;
-
-    //create the menu
-    let my_menu = menu(vec![
-        scroll("Scroll", vec!["Foo", "Bar"]),
-        numeric("Numeric", 0.0, Some(0.5), Some(-10.0), Some(5.0)),
-        button("Exit")
+    use terminal_menu::{menu, button, activate, wait_for_exit};
+    let menu = menu(vec![
+        button("get me out of here!")
     ]);
 
-    //menus can be used asynchronously with the activate() function
-    activate(&my_menu);
+    // like run but doesn't block
+    activate(&menu);
 
-    //you can do anything you want here
-    let mut number = 1;
-    for n in 1..10 {
-        number *= n;
+    // do stuff
+    let mut num: usize = 1;
+    for i in 2..10 {
+        num *= i;
     }
 
-    //returns when the menu has exited
-    wait_for_exit(&my_menu);
-
-    println!("{}", number);
+    wait_for_exit(&menu);
+    println!("{}", num);
 }

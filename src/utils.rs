@@ -51,19 +51,6 @@ pub fn value_valid(value: f64, step: Option<f64>, min: Option<f64>, max: Option<
     true
 }
 
-pub fn step_valid(step: Option<f64>, min: Option<f64>, max: Option<f64>) -> bool {
-    return if let Some(step) = step {
-        if step.is_nan() {
-            return false;
-        }
-        let min = min.unwrap_or(0.0);
-        let max = max.unwrap_or(std::f64::MAX);
-        step < max - min && (max - min) % step == 0.0
-    } else {
-        true
-    }
-}
-
 pub fn number_range_indicator(step: Option<f64>, min: Option<f64>, max: Option<f64>) -> String {
     let prefix = String::new();
     if let Some(step) = step {

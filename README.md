@@ -15,7 +15,7 @@ Display simple menus on the terminal.
 - complete backend rewrite
 - color [yay :)]
 - removed clumsy helper functions
-- added basic menu variant for unsupported terminals
+- added string terminal-menu items
 - bugfixes
 
 [kriikkula.com](https://kriikkula.com/)

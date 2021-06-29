@@ -7,6 +7,7 @@ pub fn run(menu: TerminalMenu) {
         let mut menu_wr = menu.write().unwrap();
         menu_wr.active = true;
         menu_wr.exited = false;
+        menu_wr.canceled = false;
 
         menu_wr.longest_name = menu_wr.items.iter().map(|a| a.name.len()).max().unwrap();
 
@@ -197,7 +198,8 @@ fn handle_input(menu: &TerminalMenu) {
                     Enter | Char(' ') => handle_enter(&mut menu_wr),
                     Esc   | Char('q') => {
                         menu_wr.active = false;
-                        menu_wr.exit = true;
+                        menu_wr.exit = menu_wr.name.clone();
+                        menu_wr.canceled = true;
                         return;
                     },
                     _ => {}
@@ -266,7 +268,7 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
     let item_count = menu.items.len();
     match &mut menu.items[menu.selected].kind {
         TMIKind::Button => {
-            menu.exit = true;
+            menu.exit = menu.name.clone();
             menu.active = false;
         }
         TMIKind::BackButton => {
@@ -282,6 +284,7 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
                         back_button(s)
                     }
                 ).collect());
+            temp_menu.write().unwrap().selected = *selected;
             if let PrintState::Small = menu.printed {
                 terminal::disable_raw_mode().unwrap();
                 utils::unprint(item_count);
@@ -383,8 +386,9 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
 
             crate::run(submenu);
 
-            if submenu.read().unwrap().exit {
-                menu.exit = true;
+            if let Some(exit_menu) = &submenu.clone().read().unwrap().exit {
+                menu.exit = Some(exit_menu.clone());
+                menu.canceled = submenu.read().unwrap().canceled;
                 menu.active = false;
             } else {
                 print(menu);

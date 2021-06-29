@@ -1,15 +1,29 @@
 ///
-/// Simple menu with three options.
+/// A simple menu with three options to choose from.
 ///
 
 fn main() {
-    use terminal_menu::{menu, button, run, mut_menu};
-
+    use terminal_menu::{menu, label, button, run, mut_menu};
     let menu = menu(vec![
-        button("Option 1"),
-        button("Option 2"),
-        button("Option 3")
+
+        // label:
+        //  not selectable, usefule as a title, separator, etc...
+        label("----------------------"),
+        label("terminal-menu"),
+        label("use wasd or arrow keys"),
+        label("enter to select"),
+        label("'q' or esc to exit"),
+        label("-----------------------"),
+
+        // button:
+        //  exit the menu
+        button("Alice"),
+        button("Bob"),
+        button("Charlie")
+
     ]);
     run(&menu);
-    println!("Selected option: {}", mut_menu(&menu).selected_item_name());
+
+    // you can get the selected buttons name like so:
+    println!("Selected: {}", mut_menu(&menu).selected_item_name());
 }
