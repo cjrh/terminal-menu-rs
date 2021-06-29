@@ -1,13 +1,9 @@
 //! Display simple menus on the terminal!
 //! [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 
-#![allow(dead_code)]
-
 mod fancy_menu;
-mod basic_menu;
 mod utils;
 
-use utils::*;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread;
 use std::time::Duration;
@@ -429,7 +425,7 @@ impl TerminalMenuStruct {
 /// Create a terminal-menu. See the examples for more.
 /// # Example
 /// ```
-/// use terminal_menu::*
+/// use terminal_menu::*;
 /// let my_menu = menu(vec![
 ///     label("label"),
 ///     button("button"),
@@ -477,7 +473,7 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
 /// if has_exited(&my_menu) {
 ///     let mut mutable_menu = mut_menu(&my_menu);
 ///     println!("Selected Item: {}", mutable_menu.selected_item_name());
-///     mutable_menu.items.push(string("new item", "def"));
+///     mutable_menu.items.push(string("new item", "def", false));
 /// }
 ///
 /// run(&my_menu);
@@ -501,7 +497,7 @@ pub fn has_exited(menu: &TerminalMenu) -> bool {
 /// if has_exited(&my_menu) {
 ///     let mut mutable_menu = mut_menu(&my_menu);
 ///     println!("Selected Item: {}", mutable_menu.selected_item_name());
-///     mutable_menu.items.push(string("new item", "def"));
+///     mutable_menu.items.push(string("new item", "def", false));
 /// }
 ///
 /// run(&my_menu);
@@ -528,7 +524,7 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
 /// if has_exited(&my_menu) {
 ///     let mut mutable_menu = mut_menu(&my_menu);
 ///     println!("Selected Item: {}", mutable_menu.selected_item_name());
-///     mutable_menu.items.push(string("new item", "def"));
+///     mutable_menu.items.push(string("new item", "def", false));
 /// }
 ///
 /// run(&my_menu);
@@ -538,49 +534,6 @@ pub fn activate(menu: &TerminalMenu) {
     thread::spawn(move || {
         fancy_menu::run(menu.clone())
     });
-}
-
-/// Activate (open) the menu as the basic variant.
-/// Menu will deactivate when deactivated manually or button items are selected.
-/// # Example
-/// ```
-/// terminal_menu::activate_basic(&menu);
-/// ```
-fn activate_basic(menu: &TerminalMenu) {
-    let menu = menu.clone();
-    thread::spawn(move || {
-        basic_menu::run(menu);
-    });
-}
-
-/// Try to activate (open) the menu as the fancy variant.
-/// returns Err(()) when the terminal does not support it.
-/// Menu will deactivate when deactivated manually or button items are pressed.
-/// # Example
-/// ```
-/// use terminal_menu::{TerminalMenu, menu, list, try_activate_fancy};
-/// let my_menu = menu(vec![
-///     list("galadriel", vec!["frodo", "bilbo"])
-///     numeric("boo", 4.67, Some(3.0), None, None)
-/// ]);
-/// match try_activate_fancy(&my_menu) {
-///     Ok(())  => {
-///         //code on success
-///     }
-///     Err(()) => {
-///         //code on error
-///     }
-/// }
-/// ```
-pub fn try_activate_fancy(menu: &TerminalMenu) -> Result<(), ()> {
-    if !crossterm_compatible() {
-        return Err(());
-    }
-    let menu = menu.clone();
-    thread::spawn(move || {
-        fancy_menu::run(menu);
-    });
-    Ok(())
 }
 
 /// Deactivate (exit) a menu manually.
@@ -637,41 +590,4 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
 /// ```
 pub fn run(menu: &TerminalMenu) {
     fancy_menu::run(menu.clone());
-}
-
-/// Activate (open) the menu as the basic variant and wait for it to deactivate (exit).
-/// Menu will deactivate when deactivated manually or button items are selected.
-/// # Example
-/// ```
-/// terminal_menu::activate_basic(&menu);
-/// ```
-fn run_basic(menu: &TerminalMenu) {
-    basic_menu::run(menu.clone());
-}
-
-/// Try to activate (open) the menu as the fancy variant and wait for it to deactivate (exit).
-/// returns Err(()) when the terminal does not support it.
-/// Menu will deactivate when deactivated manually or button items are pressed.
-/// # Example
-/// ```
-/// use terminal_menu::{TerminalMenu, menu, try_run_fancy};
-/// let my_menu = menu(vec![
-///     list("galadriel", vec!["frodo", "bilbo"])
-///     numeric("boo", 4.67, Some(3.0), None, None)
-/// ]);
-/// match try_run_fancy(&my_menu) {
-///     Ok(())  => {
-///         //code on success
-///     }
-///     Err(()) => {
-///         //code on error
-///     }
-/// }
-/// ```
-pub fn try_run_fancy(menu: &TerminalMenu) -> Result<(), ()> {
-    if !crossterm_compatible() {
-        return Err(());
-    }
-    fancy_menu::run(menu.clone());
-    Ok(())
 }

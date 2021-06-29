@@ -19,11 +19,11 @@ Display simple menus on the terminal.
 - added string terminal-menu items
 - bugfixes
 
-[kriikkula.com](https://kriikkula.com/)
-
 #### Migrating from v1.9.7
 - `get_mutable_instace` was renamed to `mut_menu`
 - Rewrite helper functions  
 from: `selection_value(&menu, "foo")`  
 to: `mut_menu(&menu).selection_value("foo")`
 - See the examples! Lot's of good stuff there!
+
+[kriikkula.com](https://kriikkula.com/)

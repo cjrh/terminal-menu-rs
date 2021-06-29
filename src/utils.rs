@@ -91,10 +91,3 @@ pub fn number_range_indicator(step: Option<f64>, min: Option<f64>, max: Option<f
     }
     prefix
 }
-
-pub fn crossterm_compatible() -> bool {
-    return match crossterm::event::poll(Duration::from_nanos(1)) {
-        Ok(_) => true,
-        Err(_) => false
-    }
-}
