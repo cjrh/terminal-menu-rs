@@ -391,6 +391,7 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
                 menu.canceled = submenu.read().unwrap().canceled;
                 menu.active = false;
             } else {
+                menu.printed = PrintState::None;
                 print(menu);
                 terminal::enable_raw_mode().unwrap();
                 execute!(
