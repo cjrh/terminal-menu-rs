@@ -10,6 +10,9 @@ Display simple menus on the terminal.
   Exit     
 ```
 
+### v2.0.1
+- fixed bug where terminal would exit alternate screen on submenu exit
+
 ### v2.0.0
 
 - updated to crossterm 0.20.0
