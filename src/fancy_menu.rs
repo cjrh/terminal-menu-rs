@@ -322,7 +322,7 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
             ).unwrap();
             let mut input = String::new();
             stdin().read_line(&mut input).unwrap();
-            input.pop().unwrap();
+            input = input.trim().to_owned();
             terminal::enable_raw_mode().unwrap();
             execute!(
                 stdout(),
