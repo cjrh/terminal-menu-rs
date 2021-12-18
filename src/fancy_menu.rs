@@ -60,6 +60,10 @@ fn print(menu_wr: &mut TerminalMenuStruct) {
 }
 
 fn print_big(menu: &mut TerminalMenuStruct) {
+    let term_height = utils::term_height();
+    if term_height <= 3 {
+        return;
+    }
     if let PrintState::Small = menu.printed {
         utils::unprint(menu.items.len());
     }
@@ -76,10 +80,7 @@ fn print_big(menu: &mut TerminalMenuStruct) {
         style::Print("..."),
         cursor::MoveToNextLine(1)
     ).unwrap();
-    let term_height = utils::term_height();
-    if term_height <= 3 {
-        return;
-    }
+
     let item_count = menu.items.len().min(term_height - 3);
     let mut top = 0;
     if menu.selected > item_count / 2 {
@@ -299,6 +300,7 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
 
             *selected = temp_menu.read().unwrap().selected;
 
+            menu.printed = PrintState::None;
             print(menu);
             terminal::enable_raw_mode().unwrap();
             execute!(
