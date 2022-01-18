@@ -9,6 +9,10 @@ Display simple menus on the terminal.
   Submenu    
   Exit     
 ```
+### v2.0.2
+- Strings are trimmed
+- Fixed terminal default color
+- Minor bugfix in the Windows version
 
 ### v2.0.1
 - fixed bug where terminal would exit alternate screen on submenu exit
