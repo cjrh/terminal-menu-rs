@@ -44,7 +44,7 @@ pub fn label<T: Into<String>>(text: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: text.into(),
         kind: TMIKind::Label,
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -64,7 +64,7 @@ pub fn button<T: Into<String>>(name: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Button,
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -84,7 +84,7 @@ pub fn back_button<T: Into<String>>(name: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::BackButton,
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -114,7 +114,7 @@ pub fn scroll<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> Termina
             values,
             selected: 0
         },
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -144,7 +144,7 @@ pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalM
             values,
             selected: 0
         },
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -163,7 +163,7 @@ pub fn string<T: Into<String>, T2: Into<String>>(name: T, default: T2, allow_emp
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::String { value: default.into(), allow_empty },
-        color: Color::White,
+        color: Color::Reset,
     }
 }
 
@@ -194,7 +194,7 @@ pub fn numeric<T: Into<String>>(name: T, default: f64, step: Option<f64>, min: O
             min,
             max
         },
-        color: Color::White
+        color: Color::Reset
     }
 }
 
@@ -222,7 +222,7 @@ pub fn submenu<T: Into<String> + Clone>(name: T, items: Vec<TerminalMenuItem>) -
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Submenu(menu),
-        color: Color::White
+        color: Color::Reset
     }
 }
 
