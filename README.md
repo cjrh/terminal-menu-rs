@@ -9,6 +9,9 @@ Display simple menus on the terminal.
   Submenu    
   Exit     
 ```
+### v2.0.3
+- updated to crossterm 0.23.*
+
 ### v2.0.2
 - updated to crossterm 0.22.1
 - strings are trimmed
