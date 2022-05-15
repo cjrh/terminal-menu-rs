@@ -78,8 +78,8 @@ fn print_big(menu: &mut TerminalMenuStruct) {
         cursor::MoveTo(0, 0),
         terminal::Clear(terminal::ClearType::All),
         style::Print("..."),
-        cursor::MoveToNextLine(1)
     ).unwrap();
+    println!("\r");
 
     let item_count = menu.items.len().min(term_height - 3);
     let mut top = 0;
@@ -91,10 +91,7 @@ fn print_big(menu: &mut TerminalMenuStruct) {
     }
     for i in top..(top + item_count) {
         print_item(menu, i);
-        queue!(
-            stdout(),
-            cursor::MoveToNextLine(1),
-        ).unwrap();
+        println!("\r");
     }
     println!("...");
     menu.printed = PrintState::Big;
