@@ -7,7 +7,7 @@ fn main() {
     let menu = menu(vec![
 
         // label:
-        //  not selectable, usefule as a title, separator, etc...
+        //  not selectable, useful as a title, separator, etc...
         label("----------------------"),
         label("terminal-menu"),
         label("use wasd or arrow keys"),

@@ -3,8 +3,9 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, button, run, mut_menu};
+    use terminal_menu::{menu, label, button, run, mut_menu};
     let menu = menu(vec![
+        label("press the button or hit 'q' or esc!"),
         button("button")
     ]);
     run(&menu);

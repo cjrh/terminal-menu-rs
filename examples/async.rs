@@ -3,8 +3,9 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, button, activate, wait_for_exit};
+    use terminal_menu::{menu, label, button, activate, wait_for_exit};
     let menu = menu(vec![
+        label("do work when menu open!"),
         button("get me out of here!")
     ]);
 

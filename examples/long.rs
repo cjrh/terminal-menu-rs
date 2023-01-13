@@ -3,7 +3,7 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, button, run, mut_menu};
+    use terminal_menu::{menu, label, button, run, mut_menu};
     let menu = menu(
 
         // create buttons representing numbers from 1 to 100

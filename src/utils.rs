@@ -12,6 +12,9 @@ lazy_static! {
 pub fn term_height() -> usize {
     terminal::size().unwrap().1 as usize
 }
+pub fn term_width() -> usize {
+    terminal::size().unwrap().0 as usize
+}
 
 pub fn unprint(item_count: usize) {
     execute!(
