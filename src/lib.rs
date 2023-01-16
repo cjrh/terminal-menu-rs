@@ -459,25 +459,7 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
     panic!("no selectable items");
 }
 
-/// Returns true if the menu is inactive and has exited.
-/// # Example
-/// ```
-/// use terminal_menu::{menu, numeric, string, run, activate, has_exited, mut_menu};
-/// let mut my_menu = menu(vec![
-///     numeric("Charlie", 46.5, None, Some(32332.2), None)
-/// ]);
-/// activate(&my_menu);
-///
-/// //stuff
-///
-/// if has_exited(&my_menu) {
-///     let mut mutable_menu = mut_menu(&my_menu);
-///     println!("Selected Item: {}", mutable_menu.selected_item_name());
-///     mutable_menu.items.push(string("new item", "def", false));
-/// }
-///
-/// run(&my_menu);
-/// ```
+/// Returns true if the menu has exited.
 pub fn has_exited(menu: &TerminalMenu) -> bool {
     menu.read().unwrap().exited
 }
@@ -486,21 +468,22 @@ pub fn has_exited(menu: &TerminalMenu) -> bool {
 /// Works only if has_exited(&menu) is true.
 /// # Example
 /// ```
-/// use terminal_menu::{menu, numeric, string, run, activate, has_exited, mut_menu};
+/// use terminal_menu::{menu, numeric, string, run, has_exited, mut_menu};
 /// let mut my_menu = menu(vec![
 ///     numeric("Charlie", 46.5, None, Some(32332.2), None)
 /// ]);
-/// activate(&my_menu);
+/// run(&my_menu);
 ///
 /// //stuff
 ///
-/// if has_exited(&my_menu) {
+/// {
 ///     let mut mutable_menu = mut_menu(&my_menu);
 ///     println!("Selected Item: {}", mutable_menu.selected_item_name());
 ///     mutable_menu.items.push(string("new item", "def", false));
 /// }
 ///
 /// run(&my_menu);
+///
 /// ```
 pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
     if !has_exited(menu) {
@@ -513,33 +496,7 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
 /// Menu will deactivate when deactivated manually or button items are pressed.
 /// # Example
 /// ```
-/// use terminal_menu::{menu, numeric, string, run, activate, has_exited, mut_menu};
-/// let mut my_menu = menu(vec![
-///     numeric("Charlie", 46.5, None, Some(32332.2), None)
-/// ]);
-/// activate(&my_menu);
-///
-/// //stuff
-///
-/// if has_exited(&my_menu) {
-///     let mut mutable_menu = mut_menu(&my_menu);
-///     println!("Selected Item: {}", mutable_menu.selected_item_name());
-///     mutable_menu.items.push(string("new item", "def", false));
-/// }
-///
-/// run(&my_menu);
-/// ```
-pub fn activate(menu: &TerminalMenu) {
-    let menu = menu.clone();
-    thread::spawn(move || {
-        fancy_menu::run(menu.clone())
-    });
-}
-
-/// Deactivate (exit) a menu manually.
-/// # Example
-/// ```
-/// use terminal_menu::{menu, numeric, activate, deactivate};
+/// use terminal_menu::{TerminalMenu, menu, activate, wait_for_exit};
 /// let my_menu = menu(vec![
 ///     list("galadriel", vec!["frodo", "bilbo"])
 ///     numeric("boo", 4.67, Some(3.0), None, None)
@@ -548,17 +505,19 @@ pub fn activate(menu: &TerminalMenu) {
 ///
 /// //do something here
 ///
-/// deactivate(&my_menu);
-/// ```
-pub fn deactivate(menu: &TerminalMenu) {
-    menu.write().unwrap().active = false;
-    wait_for_exit(menu);
+/// wait_for_exit(&my_menu);
+///```
+pub fn activate(menu: &TerminalMenu) {
+    let menu = menu.clone();
+        thread::spawn(move || {
+            fancy_menu::run(menu.clone())
+        });
 }
 
 /// Wait for menu to exit.
 /// # Example
 /// ```
-/// use terminal_menu::{TerminalMenu, menu, activate, deactivate, wait_for_exit};
+/// use terminal_menu::{TerminalMenu, menu, activate, wait_for_exit};
 /// let my_menu = menu(vec![
 ///     list("galadriel", vec!["frodo", "bilbo"])
 ///     numeric("boo", 4.67, Some(3.0), None, None)
@@ -589,5 +548,5 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
 /// run(&my_menu);
 /// ```
 pub fn run(menu: &TerminalMenu) {
-    fancy_menu::run(menu.clone());
+        fancy_menu::run(menu.clone());
 }

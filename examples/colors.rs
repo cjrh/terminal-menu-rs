@@ -11,7 +11,6 @@ fn main() {
     let menu = menu(vec![
 
         label("COLOR!"),
-        label("White"),
         label("Red").colorize(Color::Red),
         label("Green").colorize(Color::Green),
         label("Blue").colorize(Color::Blue),
