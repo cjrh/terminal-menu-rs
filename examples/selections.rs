@@ -3,10 +3,9 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, label, button, list, scroll, run, mut_menu};
+    use terminal_menu::{button, label, list, menu, mut_menu, run, scroll};
     let menu = menu(vec![
         label("lists and scrolls"),
-
         // with list and scroll you can select a value from a group of values
         // you can change the selected value with arrow keys, wasd, or enter
 
@@ -17,12 +16,10 @@ fn main() {
         //  show all values
         //  surround the selected value with brackets
         list("li", vec!["Alice", "Bob", "Charlie"]),
-
         // scroll:
         //  show only the selected item
         scroll("sc", vec!["Alice", "Bob", "Charlie"]),
-
-        button("exit")
+        button("exit"),
     ]);
     run(&menu);
     {

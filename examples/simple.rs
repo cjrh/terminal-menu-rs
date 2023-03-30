@@ -3,9 +3,8 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, label, button, run, mut_menu};
+    use terminal_menu::{button, label, menu, mut_menu, run};
     let menu = menu(vec![
-
         // label:
         //  not selectable, useful as a title, separator, etc...
         label("----------------------"),
@@ -14,13 +13,11 @@ fn main() {
         label("enter to select"),
         label("'q' or esc to exit"),
         label("-----------------------"),
-
         // button:
         //  exit the menu
         button("Alice"),
         button("Bob"),
-        button("Charlie")
-
+        button("Charlie"),
     ]);
     run(&menu);
 
