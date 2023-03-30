@@ -15,10 +15,11 @@ enum TMIKind {
     Label,
     Button,
     BackButton,
-    Scroll  { values: Vec<String>, selected: usize },
-    List    { values: Vec<String>, selected: usize },
-    String  { value: String, allow_empty: bool },
-    Numeric { value:  f64, step: Option<f64>, min: Option<f64>, max: Option<f64> },
+    Scroll   { values: Vec<String>, selected: usize },
+    List     { values: Vec<String>, selected: usize },
+    String   { value: String, allow_empty: bool },
+    Password { value: String, allow_empty: bool },
+    Numeric  { value:  f64, step: Option<f64>, min: Option<f64>, max: Option<f64> },
     Submenu(TerminalMenu),
 }
 pub struct TerminalMenuItem {
@@ -163,6 +164,26 @@ pub fn string<T: Into<String>, T2: Into<String>>(name: T, default: T2, allow_emp
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::String { value: default.into(), allow_empty },
+        color: Color::Reset,
+    }
+}
+
+/// Make a terminal-menu item which you can enter a password to. Same as the string version, but
+/// characters are hidden by an asterisk (*). Empty inputs may be enabled with a flag.
+/// !!! WARNING: Passwords are shown in plaintext while entering them
+/// # Example
+/// ```
+/// use terminal_menu::{menu, password, run, mut_menu};
+/// let menu = menu(vec![
+///     password("My Passwords Name", "", /* allow empty password */ false)
+/// ]);
+/// run(&menu);
+/// println!("My Strings Value: {}", mut_menu(&menu).selection_value("My Strings Name"));
+/// ```
+pub fn password<T: Into<String>>(name: T, allow_empty: bool) -> TerminalMenuItem {
+    TerminalMenuItem {
+        name: name.into(),
+        kind: TMIKind::Password { value: String::new(), allow_empty },
         color: Color::Reset,
     }
 }
@@ -351,7 +372,7 @@ impl TerminalMenuStruct {
             TMIKind::List   { values, selected } => {
                 &values[*selected]
             }
-            TMIKind::String { value, .. } => value,
+            TMIKind::String { value, .. } | TMIKind::Password { value, .. } => value,
             _ => panic!("item wrong kind")
         }
     }

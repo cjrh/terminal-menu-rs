@@ -159,6 +159,19 @@ fn print_item(menu: &TerminalMenuStruct, index: usize) {
                 style::Print(value)
             ).unwrap();
         }
+        TMIKind::Password { value, .. } => {
+            queue!(
+                stdout(),
+                style::Print(" "),
+                style::Print({
+                    let mut asterisks = String::new();
+                    for _ in 0..value.len() {
+                        asterisks.push('*');
+                    }
+                    asterisks
+                })
+            ).unwrap();
+        }
         TMIKind::Numeric { value, .. } => {
             queue!(
                 stdout(),
@@ -306,6 +319,39 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
             ).unwrap();
         }
         TMIKind::String { value, allow_empty } => {
+            if let PrintState::Big = menu.printed {
+                queue!(
+                    stdout(),
+                    cursor::MoveToNextLine(100)
+                ).unwrap();
+            }
+            print!(": ");
+            stdout().flush().unwrap();
+            terminal::disable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Show,
+            ).unwrap();
+            let mut input = String::new();
+            stdin().read_line(&mut input).unwrap();
+            input = input.trim().to_owned();
+            terminal::enable_raw_mode().unwrap();
+            execute!(
+                stdout(),
+                cursor::Hide,
+            ).unwrap();
+            utils::unprint(1);
+            if *allow_empty || !input.is_empty() {
+                *value = input;
+            }
+            if let PrintState::Big = menu.printed  {
+                print(menu);
+            } else {
+                print_in_place(menu, menu.selected);
+                stdout().flush().unwrap();
+            }
+        }
+        TMIKind::Password { value, allow_empty } => {
             if let PrintState::Big = menu.printed {
                 queue!(
                     stdout(),
