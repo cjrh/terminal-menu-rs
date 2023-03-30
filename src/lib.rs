@@ -531,7 +531,7 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
 pub fn activate(menu: &TerminalMenu) {
     let menu = menu.clone();
         thread::spawn(move || {
-            fancy_menu::run(menu.clone())
+            fancy_menu::run(menu)
         });
 }
 

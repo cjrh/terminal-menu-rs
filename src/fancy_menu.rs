@@ -52,7 +52,7 @@ fn print(menu_wr: &mut TerminalMenuStruct) {
         print_big(menu_wr);
     } else if let PrintState::None = menu_wr.printed {
         for i in 0..menu_wr.items.len() {
-            print_item(&menu_wr, i);
+            print_item(menu_wr, i);
             println!();
         }
         menu_wr.printed = PrintState::Small;
@@ -127,19 +127,19 @@ fn print_item(menu: &TerminalMenuStruct, index: usize) {
         TMIKind::BackButton |
         TMIKind::Submenu(_) => {}
         TMIKind::List { values, selected } => {
-            for i in 0..values.len() {
+            for (i, item) in values.iter().enumerate() {
                 if i == *selected {
                     queue!(
                         stdout(),
                         style::Print("["),
-                        style::Print(&values[i]),
+                        style::Print(&item),
                         style::Print("]")
                     ).unwrap();
                 } else {
                     queue!(
                         stdout(),
                         style::Print(" "),
-                        style::Print(&values[i]),
+                        style::Print(&item),
                         style::Print(" ")
                     ).unwrap();
                 }
@@ -149,7 +149,7 @@ fn print_item(menu: &TerminalMenuStruct, index: usize) {
             queue!(
                 stdout(),
                 style::Print(" "),
-                style::Print(values.iter().nth(*selected).unwrap()),
+                style::Print(values.get(*selected).unwrap()),
             ).unwrap();
         }
         TMIKind::String { value, .. } => {
@@ -474,7 +474,7 @@ fn inc_value(menu: &mut TerminalMenuStruct) {
     if let PrintState::Big = menu.printed {
         print(menu);
     } else {
-        print_in_place(&menu, menu.selected);
+        print_in_place(menu, menu.selected);
         stdout().flush().unwrap();
     }
 }
@@ -504,7 +504,7 @@ fn dec_value(menu: &mut TerminalMenuStruct) {
     if let PrintState::Big = menu.printed {
         print(menu);
     } else {
-        print_in_place(&menu, menu.selected);
+        print_in_place(menu, menu.selected);
         stdout().flush().unwrap();
     }
 }

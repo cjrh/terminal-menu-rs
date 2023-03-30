@@ -47,7 +47,7 @@ pub fn value_valid(value: f64, step: Option<f64>, min: Option<f64>, max: Option<
         }
     }
     if let Some(step) = step {
-        if (value - min.unwrap_or(max.unwrap_or(0.0)).abs()) % step != 0.0 {
+        if (value - min.unwrap_or_else(|| max.unwrap_or(0.0)).abs()) % step != 0.0 {
             return false;
         }
     }
