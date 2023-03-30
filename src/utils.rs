@@ -1,7 +1,7 @@
+use crossterm::{cursor, execute, terminal};
+use lazy_static::lazy_static;
 use std::io::stdout;
 use std::time::Duration;
-use crossterm::*;
-use lazy_static::lazy_static;
 
 const MAX_FLOAT_PRINTING_PRECISION: usize = 10;
 
@@ -21,14 +21,15 @@ pub fn unprint(item_count: usize) {
         stdout(),
         cursor::MoveUp(item_count as u16),
         terminal::Clear(terminal::ClearType::FromCursorDown)
-    ).unwrap()
+    )
+    .unwrap();
 }
 
 pub fn float_printing_precision(n: f64) -> usize {
     let s = n.to_string();
     match s.split('.').nth(1) {
         Some(s) => s.len().min(MAX_FLOAT_PRINTING_PRECISION),
-        None => 0
+        None => 0,
     }
 }
 
@@ -58,9 +59,12 @@ pub fn number_range_indicator(step: Option<f64>, min: Option<f64>, max: Option<f
     let prefix = String::new();
     if let Some(step) = step {
         if let Some(min) = min {
-            print!("[{:.*}, {:.*}, ..",
-                   float_printing_precision(min), min,
-                   float_printing_precision(min + step), min + step,
+            print!(
+                "[{:.*}, {:.*}, ..",
+                float_printing_precision(min),
+                min,
+                float_printing_precision(min + step),
+                min + step,
             );
             if let Some(max) = max {
                 print!(", {:.*}] ", float_printing_precision(max), max);
@@ -68,21 +72,30 @@ pub fn number_range_indicator(step: Option<f64>, min: Option<f64>, max: Option<f
                 print!("] ");
             }
         } else if let Some(max) = max {
-            print!("[.., {:.*}, {:.*}] ",
-                   float_printing_precision(max - step), max - step,
-                   float_printing_precision(max), max
+            print!(
+                "[.., {:.*}, {:.*}] ",
+                float_printing_precision(max - step),
+                max - step,
+                float_printing_precision(max),
+                max
             );
         } else {
-            print!("[.., {:.*}, 0, {:.*}, ..] ",
-                   float_printing_precision(-step), -step,
-                   float_printing_precision(step), step
+            print!(
+                "[.., {:.*}, 0, {:.*}, ..] ",
+                float_printing_precision(-step),
+                -step,
+                float_printing_precision(step),
+                step
             );
         }
     } else if let Some(min) = min {
         if let Some(max) = max {
-            print!("[{:.*}..{:.*}] ",
-                   float_printing_precision(min), min,
-                   float_printing_precision(max), max
+            print!(
+                "[{:.*}..{:.*}] ",
+                float_printing_precision(min),
+                min,
+                float_printing_precision(max),
+                max
             );
         } else {
             print!("[> {:.*}] ", float_printing_precision(min), min);

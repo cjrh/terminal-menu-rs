@@ -4,10 +4,10 @@
 mod fancy_menu;
 mod utils;
 
+use crossterm::style::Color;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread;
 use std::time::Duration;
-use crossterm::style::Color;
 
 pub type TerminalMenu = Arc<RwLock<TerminalMenuStruct>>;
 
@@ -15,11 +15,28 @@ enum TMIKind {
     Label,
     Button,
     BackButton,
-    Scroll   { values: Vec<String>, selected: usize },
-    List     { values: Vec<String>, selected: usize },
-    String   { value: String, allow_empty: bool },
-    Password { value: String, allow_empty: bool },
-    Numeric  { value:  f64, step: Option<f64>, min: Option<f64>, max: Option<f64> },
+    Scroll {
+        values: Vec<String>,
+        selected: usize,
+    },
+    List {
+        values: Vec<String>,
+        selected: usize,
+    },
+    String {
+        value: String,
+        allow_empty: bool,
+    },
+    Password {
+        value: String,
+        allow_empty: bool,
+    },
+    Numeric {
+        value: f64,
+        step: Option<f64>,
+        min: Option<f64>,
+        max: Option<f64>,
+    },
     Submenu(TerminalMenu),
 }
 pub struct TerminalMenuItem {
@@ -27,8 +44,6 @@ pub struct TerminalMenuItem {
     kind: TMIKind,
     color: crossterm::style::Color,
 }
-
-
 
 /// Make a label terminal-menu item.
 /// Can't be selected.
@@ -45,7 +60,7 @@ pub fn label<T: Into<String>>(text: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: text.into(),
         kind: TMIKind::Label,
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
@@ -65,7 +80,7 @@ pub fn button<T: Into<String>>(name: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Button,
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
@@ -85,12 +100,16 @@ pub fn back_button<T: Into<String>>(name: T) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::BackButton,
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// All values are dispalyed all the time.
+///
+/// # Panics
+/// Panics if `values` of the scroll is empty.
+///
 /// # Example
 /// ```
 /// use terminal_menu::{menu, scroll, run, mut_menu};
@@ -104,23 +123,28 @@ pub fn back_button<T: Into<String>>(name: T) -> TerminalMenuItem {
 /// run(&menu);
 /// println!("My Scrolls Value: {}", mut_menu(&menu).selection_value("My Scrolls Name"));
 /// ```
-pub fn scroll<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem where T2::Item: Into<String> {
-    let values: Vec<String> = values.into_iter().map(|a| a.into()).collect();
-    if values.is_empty() {
-        panic!("values cannot be empty");
-    }
+pub fn scroll<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem
+where
+    T2::Item: Into<String>,
+{
+    let values: Vec<String> = values.into_iter().map(std::convert::Into::into).collect();
+    assert!(!values.is_empty(), "values cannot be empty");
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Scroll {
             values,
-            selected: 0
+            selected: 0,
         },
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
 /// Make a terminal-menu item from which you can select a value from a selection.
 /// Only the selected value is visible.
+///
+/// # Panics
+/// Panics if `values` of the list is empty.
+///
 /// # Example
 /// ```
 /// use terminal_menu::{menu, list, run, mut_menu};
@@ -134,18 +158,19 @@ pub fn scroll<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> Termina
 /// run(&menu);
 /// println!("My Lists Value: {}", mut_menu(&menu).selection_value("My Lists Name"));
 /// ```
-pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem where T2::Item: Into<String> {
-    let values: Vec<String> = values.into_iter().map(|a| a.into()).collect();
-    if values.is_empty() {
-        panic!("values cannot be empty");
-    }
+pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalMenuItem
+where
+    T2::Item: Into<String>,
+{
+    let values: Vec<String> = values.into_iter().map(std::convert::Into::into).collect();
+    assert!(!values.is_empty(), "values cannot be empty");
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::List {
             values,
-            selected: 0
+            selected: 0,
         },
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
@@ -160,10 +185,17 @@ pub fn list<T: Into<String>, T2: IntoIterator>(name: T, values: T2) -> TerminalM
 /// run(&menu);
 /// println!("My Strings Value: {}", mut_menu(&menu).selection_value("My Strings Name"));
 /// ```
-pub fn string<T: Into<String>, T2: Into<String>>(name: T, default: T2, allow_empty: bool) -> TerminalMenuItem {
+pub fn string<T: Into<String>, T2: Into<String>>(
+    name: T,
+    default: T2,
+    allow_empty: bool,
+) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
-        kind: TMIKind::String { value: default.into(), allow_empty },
+        kind: TMIKind::String {
+            value: default.into(),
+            allow_empty,
+        },
         color: Color::Reset,
     }
 }
@@ -183,12 +215,19 @@ pub fn string<T: Into<String>, T2: Into<String>>(name: T, default: T2, allow_emp
 pub fn password<T: Into<String>>(name: T, allow_empty: bool) -> TerminalMenuItem {
     TerminalMenuItem {
         name: name.into(),
-        kind: TMIKind::Password { value: String::new(), allow_empty },
+        kind: TMIKind::Password {
+            value: String::new(),
+            allow_empty,
+        },
         color: Color::Reset,
     }
 }
 
 /// Make a terminal-menu item from which you can select a number between specified bounds.
+///
+/// # Panics
+/// Panics if default value is not valid.
+///
 /// # Example
 /// ```
 /// use terminal_menu::{menu, numeric, run, mut_menu};
@@ -203,24 +242,35 @@ pub fn password<T: Into<String>>(name: T, allow_empty: bool) -> TerminalMenuItem
 /// run(&menu);
 /// println!("My Numerics Value: {}", mut_menu(&menu).numeric_value("My Numerics Name"))
 /// ```
-pub fn numeric<T: Into<String>>(name: T, default: f64, step: Option<f64>, min: Option<f64>, max: Option<f64>) -> TerminalMenuItem {
-    if !utils::value_valid(default, step, min, max) {
-        panic!("invalid default value");
-    }
+pub fn numeric<T: Into<String>>(
+    name: T,
+    default: f64,
+    step: Option<f64>,
+    min: Option<f64>,
+    max: Option<f64>,
+) -> TerminalMenuItem {
+    assert!(
+        utils::value_valid(default, step, min, max),
+        "invalid default value"
+    );
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Numeric {
             value: default,
             step,
             min,
-            max
+            max,
         },
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
 /// Make a terminal-menu submenu item.
 /// It is basically a menu inside a menu.
+///
+/// # Panics
+/// Panics if lock on the menu cannot be aquired.
+///
 /// # Example
 /// ```
 /// use terminal_menu::{menu, submenu, list, button, back_button, run, mut_menu};
@@ -243,13 +293,13 @@ pub fn submenu<T: Into<String> + Clone>(name: T, items: Vec<TerminalMenuItem>) -
     TerminalMenuItem {
         name: name.into(),
         kind: TMIKind::Submenu(menu),
-        color: Color::Reset
+        color: Color::Reset,
     }
 }
 
 impl TerminalMenuItem {
-
     /// Get the name of the terminal-menu item.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -264,17 +314,17 @@ impl TerminalMenuItem {
     ///     scroll("Me too!", vec!["foo", "bar"]).colorize(Color::Green)
     /// ]);
     /// ```
+    #[must_use]
     pub fn colorize(mut self, color: Color) -> Self {
         self.color = color;
         self
     }
-
 }
 
 pub(crate) enum PrintState {
     None,
     Small,
-    Big
+    Big,
 }
 
 pub struct TerminalMenuStruct {
@@ -290,7 +340,6 @@ pub struct TerminalMenuStruct {
     printed: PrintState,
 }
 impl TerminalMenuStruct {
-
     /// Returns the name of the selected menu item.
     /// # Example
     /// ```
@@ -302,6 +351,7 @@ impl TerminalMenuStruct {
     /// run(&my_menu);
     /// println!("selected item name: {}", mut_menu(&my_menu).selected_item_name()); //"a" or "b"
     /// ```
+    #[must_use]
     pub fn selected_item_name(&self) -> &str {
         &self.items[self.selected].name
     }
@@ -317,12 +367,16 @@ impl TerminalMenuStruct {
     /// run(&my_menu);
     /// println!("selected item index: {}", mut_menu(&my_menu).selected_item_index()); // 0 or 1
     /// ```
+    #[must_use]
     pub fn selected_item_index(&self) -> usize {
         self.selected
     }
 
     fn index_of(&self, name: &str) -> usize {
-        self.items.iter().position(|a| a.name == name).expect("No item with the given name")
+        self.items
+            .iter()
+            .position(|a| a.name == name)
+            .expect("No item with the given name")
     }
 
     /// Set the selected item with a name.
@@ -340,6 +394,10 @@ impl TerminalMenuStruct {
     }
 
     /// Set the selected item with an index of the items vec.
+    ///
+    /// # Panics
+    /// Panics if index of select is larger than the amount of items.
+    ///
     /// # Example
     /// ```
     /// use terminal_menu::{TerminalMenu, menu, button, mut_menu};
@@ -350,13 +408,15 @@ impl TerminalMenuStruct {
     /// mut_menu(&my_menu).set_selected_item_with_index(1); //index 1 = other item
     /// ```
     pub fn set_selected_item_with_index(&mut self, item: usize) {
-        if item >= self.items.len() {
-            panic!("index out of bounds");
-        }
+        assert!(item < self.items.len(), "index out of bounds");
         self.selected = item;
     }
 
     /// Returns the value of the specified scroll, list, or string item.
+    ///
+    /// # Panics
+    /// Panics if called on a `TMIKind` that cannot provide a selection value.
+    ///
     /// # Example
     /// ```
     /// use terminal_menu::{TerminalMenu, menu, scroll, run, mut_menu};
@@ -366,18 +426,22 @@ impl TerminalMenuStruct {
     /// run(&my_menu);
     /// println!("item value: {}", mut_menu(&my_menu).selection_value("item"));
     /// ```
+    #[must_use]
     pub fn selection_value(&self, name: &str) -> &str {
         match &self.items[self.index_of(name)].kind {
-            TMIKind::Scroll { values, selected } |
-            TMIKind::List   { values, selected } => {
+            TMIKind::Scroll { values, selected } | TMIKind::List { values, selected } => {
                 &values[*selected]
             }
             TMIKind::String { value, .. } | TMIKind::Password { value, .. } => value,
-            _ => panic!("item wrong kind")
+            _ => panic!("item wrong kind"),
         }
     }
 
     /// Returns the value of the specified numeric item.
+    ///
+    /// # Panics
+    /// Panics if called on the wrong type, i.e., any other `TMIKind` than `TMIKind::Numeric`.
+    ///
     /// # Example
     /// ```
     /// use terminal_menu::{TerminalMenu, menu, scroll, run, numeric, mut_menu};
@@ -387,14 +451,20 @@ impl TerminalMenuStruct {
     /// run(&my_menu);
     /// println!("item value: {}", mut_menu(&my_menu).numeric_value("item"));
     /// ```
+    #[must_use]
     pub fn numeric_value(&self, name: &str) -> f64 {
         match self.items[self.index_of(name)].kind {
             TMIKind::Numeric { value, .. } => value,
-            _ => panic!("item wrong kind")
+            _ => panic!("item wrong kind"),
         }
     }
 
     /// Returns the specified submenu.
+    ///
+    /// # Panics
+    /// Panics if the lock on the menu cannot be aquired, the item cannot be found or is of the
+    /// wrong type.
+    ///
     /// # Example
     /// ```
     /// use terminal_menu::{TerminalMenu, menu, run, submenu, scroll, mut_menu};
@@ -421,7 +491,7 @@ impl TerminalMenuStruct {
     pub fn get_latest_menu_name(&mut self) -> Option<&str> {
         match &self.exit {
             None => None,
-            Some(a) => Some(a)
+            Some(a) => Some(a),
         }
     }
 
@@ -437,13 +507,17 @@ impl TerminalMenuStruct {
     /// // true if esc, false if button
     /// println!("{}", mut_menu(&menu).canceled());
     /// ```
+    #[must_use]
     pub fn canceled(&self) -> bool {
         self.canceled
     }
-
 }
 
 /// Create a terminal-menu. See the examples for more.
+///
+/// # Panics
+/// Panics if no selectable menu items are in the menu
+///
 /// # Example
 /// ```
 /// use terminal_menu::*;
@@ -459,6 +533,7 @@ impl TerminalMenuStruct {
 ///     println!("{}", mm.selected_item_name());
 /// }
 /// ```
+#[must_use]
 pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
     for i in 0..items.len() {
         if let TMIKind::Label = items[i].kind {
@@ -474,19 +549,27 @@ pub fn menu(items: Vec<TerminalMenuItem>) -> TerminalMenu {
                 exit: None,
                 canceled: false,
                 printed: PrintState::None,
-            }))
+            }));
         }
     }
     panic!("no selectable items");
 }
 
 /// Returns true if the menu has exited.
+///
+/// # Panics
+/// Panics if lock on menu cannot be aquired
+#[must_use]
 pub fn has_exited(menu: &TerminalMenu) -> bool {
     menu.read().unwrap().exited
 }
 
 /// Get a mutable instance of the menu.
-/// Works only if has_exited(&menu) is true.
+/// Works only if `has_exited(menu)` is true.
+///
+/// # Panics
+/// Panics if `has_exited(menu)` is false.
+///
 /// # Example
 /// ```
 /// use terminal_menu::{menu, numeric, string, run, has_exited, mut_menu};
@@ -507,9 +590,10 @@ pub fn has_exited(menu: &TerminalMenu) -> bool {
 ///
 /// ```
 pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
-    if !has_exited(menu) {
-        panic!("Cannot call mutable_instance if has_exited() is not true");
-    }
+    assert!(
+        has_exited(menu),
+        "Cannot call mutable_instance if has_exited() is not true"
+    );
     menu.write().unwrap()
 }
 
@@ -530,9 +614,9 @@ pub fn mut_menu(menu: &TerminalMenu) -> RwLockWriteGuard<TerminalMenuStruct> {
 ///```
 pub fn activate(menu: &TerminalMenu) {
     let menu = menu.clone();
-        thread::spawn(move || {
-            fancy_menu::run(menu)
-        });
+    thread::spawn(move || {
+        fancy_menu::run(&menu);
+    });
 }
 
 /// Wait for menu to exit.
@@ -569,5 +653,5 @@ pub fn wait_for_exit(menu: &TerminalMenu) {
 /// run(&my_menu);
 /// ```
 pub fn run(menu: &TerminalMenu) {
-        fancy_menu::run(menu.clone());
+    fancy_menu::run(&menu.clone());
 }
