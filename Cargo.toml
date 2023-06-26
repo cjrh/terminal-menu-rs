@@ -1,6 +1,6 @@
 [package]
 name = "terminal-menu"
-version = "2.0.5"
+version = "2.0.6"
 authors = ["Samuel Kriikkula <samuel@kriikkula.com>"]
 edition = "2021"
 description = "Display simple menus on the terminal"
