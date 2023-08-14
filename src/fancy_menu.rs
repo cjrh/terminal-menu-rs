@@ -1,8 +1,9 @@
-use std::io::{stdout, Write, stdin};
-use crate::{TerminalMenu, TerminalMenuStruct, TMIKind, utils, back_button, PrintState};
-use crossterm::*;
+use crate::{back_button, utils, PrintState, TMIKind, TerminalMenu, TerminalMenuStruct};
+use crossterm::event::KeyCode::{Char, Down, Enter, Esc, Left, Right, Up};
+use crossterm::{cursor, event, execute, queue, style, terminal};
+use std::io::{stdin, stdout, Write};
 
-pub fn run(menu: TerminalMenu) {
+pub fn run(menu: &TerminalMenu) {
     {
         let mut menu_wr = menu.write().unwrap();
         menu_wr.active = true;
@@ -15,30 +16,21 @@ pub fn run(menu: TerminalMenu) {
     }
 
     terminal::enable_raw_mode().unwrap();
-    execute!(
-        stdout(),
-        cursor::Hide
-    ).unwrap();
+    execute!(stdout(), cursor::Hide).unwrap();
 
     while menu.read().unwrap().active {
-        handle_input(&menu);
+        handle_input(menu);
     }
 
     terminal::disable_raw_mode().unwrap();
-    execute!(
-        stdout(),
-        cursor::Show,
-    ).unwrap();
+    execute!(stdout(), cursor::Show,).unwrap();
 
     {
         let mut menu_wr = menu.write().unwrap();
         if let PrintState::Small = menu_wr.printed {
             utils::unprint(menu_wr.items.len());
         } else if let PrintState::Big = menu_wr.printed {
-            execute!(
-                stdout(),
-                terminal::LeaveAlternateScreen
-            ).unwrap();
+            execute!(stdout(), terminal::LeaveAlternateScreen).unwrap();
         }
         menu_wr.printed = PrintState::None;
         menu_wr.exited = true;
@@ -48,11 +40,14 @@ pub fn run(menu: TerminalMenu) {
 fn print(menu_wr: &mut TerminalMenuStruct) {
     if let PrintState::Big = menu_wr.printed {
         print_big(menu_wr);
-    } else if menu_wr.items.len() + 1 >= utils::term_height() || menu_wr.longest_name >= utils::term_width() /*|| cfg!(windows)*/ {
+    } else if menu_wr.items.len() + 1 >= utils::term_height()
+        || menu_wr.longest_name >= utils::term_width()
+        /* || cfg!(windows) */
+    {
         print_big(menu_wr);
     } else if let PrintState::None = menu_wr.printed {
         for i in 0..menu_wr.items.len() {
-            print_item(&menu_wr, i);
+            print_item(menu_wr, i);
             println!();
         }
         menu_wr.printed = PrintState::Small;
@@ -68,17 +63,15 @@ fn print_big(menu: &mut TerminalMenuStruct) {
         utils::unprint(menu.items.len());
     }
     if let PrintState::Small | PrintState::None = menu.printed {
-        queue!(
-            stdout(),
-            terminal::EnterAlternateScreen
-        ).unwrap();
+        queue!(stdout(), terminal::EnterAlternateScreen).unwrap();
     }
     queue!(
         stdout(),
         cursor::MoveTo(0, 0),
         terminal::Clear(terminal::ClearType::All),
         style::Print("..."),
-    ).unwrap();
+    )
+    .unwrap();
     println!("\r");
 
     let item_count = menu.items.len().min(term_height - 3);
@@ -104,44 +97,42 @@ fn print_item(menu: &TerminalMenuStruct, index: usize) {
             crossterm::style::SetForegroundColor(crossterm::style::Color::Cyan),
             crossterm::style::Print("> "),
             crossterm::style::Print(&menu.items[index].name),
-        ).unwrap();
+        )
+        .unwrap();
     } else {
         queue!(
             stdout(),
             crossterm::style::Print("  "),
             crossterm::style::SetForegroundColor(menu.items[index].color),
             crossterm::style::Print(&menu.items[index].name)
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     for _ in menu.items[index].name.len()..menu.longest_name + 5 {
-        queue!(
-            stdout(),
-            crossterm::style::Print(" ")
-        ).unwrap();
+        queue!(stdout(), crossterm::style::Print(" ")).unwrap();
     }
 
     match &menu.items[index].kind {
-        TMIKind::Label      |
-        TMIKind::Button     |
-        TMIKind::BackButton |
-        TMIKind::Submenu(_) => {}
+        TMIKind::Label | TMIKind::Button | TMIKind::BackButton | TMIKind::Submenu(_) => {}
         TMIKind::List { values, selected } => {
-            for i in 0..values.len() {
+            for (i, item) in values.iter().enumerate() {
                 if i == *selected {
                     queue!(
                         stdout(),
                         style::Print("["),
-                        style::Print(&values[i]),
+                        style::Print(&item),
                         style::Print("]")
-                    ).unwrap();
+                    )
+                    .unwrap();
                 } else {
                     queue!(
                         stdout(),
                         style::Print(" "),
-                        style::Print(&values[i]),
+                        style::Print(&item),
                         style::Print(" ")
-                    ).unwrap();
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -149,30 +140,33 @@ fn print_item(menu: &TerminalMenuStruct, index: usize) {
             queue!(
                 stdout(),
                 style::Print(" "),
-                style::Print(values.iter().nth(*selected).unwrap()),
-            ).unwrap();
+                style::Print(values.get(*selected).unwrap()),
+            )
+            .unwrap();
         }
         TMIKind::String { value, .. } => {
+            queue!(stdout(), style::Print(" "), style::Print(value)).unwrap();
+        }
+        TMIKind::Password { value, .. } => {
             queue!(
                 stdout(),
                 style::Print(" "),
-                style::Print(value)
-            ).unwrap();
+                style::Print({
+                    let mut asterisks = String::new();
+                    for _ in 0..value.len() {
+                        asterisks.push('*');
+                    }
+                    asterisks
+                })
+            )
+            .unwrap();
         }
         TMIKind::Numeric { value, .. } => {
-            queue!(
-                stdout(),
-                style::Print(" "),
-                style::Print(value)
-            ).unwrap()
+            queue!(stdout(), style::Print(" "), style::Print(value)).unwrap();
         }
     }
 
-    queue!(
-        stdout(),
-        style::ResetColor
-    ).unwrap();
-
+    queue!(stdout(), style::ResetColor).unwrap();
 }
 
 fn handle_input(menu: &TerminalMenu) {
@@ -181,25 +175,24 @@ fn handle_input(menu: &TerminalMenu) {
             crossterm::event::Event::Key(key_event) => {
                 let mut menu_wr = menu.write().unwrap();
                 let selected = menu_wr.selected;
-                use crossterm::event::KeyCode::*;
                 match key_event.code {
-                    Up    | Char('w') | Char('k') => {
+                    Up | Char('w' | 'k') => {
                         let new = dec(&menu_wr, selected);
                         select(&mut menu_wr, new);
-                    },
-                    Down  | Char('s') | Char('j') => {
+                    }
+                    Down | Char('s' | 'j') => {
                         let new = inc(&menu_wr, selected);
                         select(&mut menu_wr, new);
-                    },
-                    Left  | Char('a') | Char('h') => dec_value(&mut menu_wr),
-                    Right | Char('d') | Char('l') => inc_value(&mut menu_wr),
+                    }
+                    Left | Char('a' | 'h') => dec_value(&mut menu_wr),
+                    Right | Char('d' | 'l') => inc_value(&mut menu_wr),
                     Enter | Char(' ') => handle_enter(&mut menu_wr),
-                    Esc   | Char('q') => {
+                    Esc | Char('q') => {
                         menu_wr.active = false;
                         menu_wr.exit = menu_wr.name.clone();
                         menu_wr.canceled = true;
                         return;
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -217,12 +210,10 @@ fn print_in_place(menu: &TerminalMenuStruct, index: usize) {
         cursor::SavePosition,
         cursor::MoveUp((menu.items.len() - index) as u16),
         terminal::Clear(terminal::ClearType::UntilNewLine)
-    ).unwrap();
+    )
+    .unwrap();
     print_item(menu, index);
-    queue!(
-        stdout(),
-        cursor::RestorePosition
-    ).unwrap();
+    queue!(stdout(), cursor::RestorePosition).unwrap();
 }
 
 fn select(menu: &mut TerminalMenuStruct, index: usize) {
@@ -251,9 +242,9 @@ fn inc(menu: &TerminalMenuStruct, mut index: usize) -> usize {
 
 fn dec(menu: &TerminalMenuStruct, mut index: usize) -> usize {
     if index == 0 {
-         index = menu.items.len() - 1;
+        index = menu.items.len() - 1;
     } else {
-        index -= 1
+        index -= 1;
     }
     if let TMIKind::Label = menu.items[index].kind {
         dec(menu, index)
@@ -272,16 +263,20 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
         TMIKind::BackButton => {
             menu.active = false;
         }
-        TMIKind::Scroll { selected, values } |
-        TMIKind::List { selected, values } => {
-            let temp_menu =
-                crate::menu(values.iter().enumerate().map(|(i, s)|
-                    if i == *selected {
-                        back_button(s).colorize(style::Color::Green)
-                    } else {
-                        back_button(s)
-                    }
-                ).collect());
+        TMIKind::Scroll { selected, values } | TMIKind::List { selected, values } => {
+            let temp_menu = crate::menu(
+                values
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        if i == *selected {
+                            back_button(s).colorize(style::Color::Green)
+                        } else {
+                            back_button(s)
+                        }
+                    })
+                    .collect(),
+            );
             temp_menu.write().unwrap().selected = *selected;
             if let PrintState::Small = menu.printed {
                 terminal::disable_raw_mode().unwrap();
@@ -300,72 +295,80 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
             menu.printed = PrintState::None;
             print(menu);
             terminal::enable_raw_mode().unwrap();
-            execute!(
-                stdout(),
-                cursor::Hide
-            ).unwrap();
+            execute!(stdout(), cursor::Hide).unwrap();
         }
         TMIKind::String { value, allow_empty } => {
             if let PrintState::Big = menu.printed {
-                queue!(
-                    stdout(),
-                    cursor::MoveToNextLine(100)
-                ).unwrap();
+                queue!(stdout(), cursor::MoveToNextLine(100)).unwrap();
             }
             print!(": ");
             stdout().flush().unwrap();
             terminal::disable_raw_mode().unwrap();
-            execute!(
-                stdout(),
-                cursor::Show,
-            ).unwrap();
+            execute!(stdout(), cursor::Show,).unwrap();
             let mut input = String::new();
             stdin().read_line(&mut input).unwrap();
             input = input.trim().to_owned();
             terminal::enable_raw_mode().unwrap();
-            execute!(
-                stdout(),
-                cursor::Hide,
-            ).unwrap();
+            execute!(stdout(), cursor::Hide,).unwrap();
             utils::unprint(1);
             if *allow_empty || !input.is_empty() {
                 *value = input;
             }
-            if let PrintState::Big = menu.printed  {
+            if let PrintState::Big = menu.printed {
                 print(menu);
             } else {
                 print_in_place(menu, menu.selected);
                 stdout().flush().unwrap();
             }
         }
-        TMIKind::Numeric { value, step, min, max } => {
+        TMIKind::Password { value, allow_empty } => {
             if let PrintState::Big = menu.printed {
-                queue!(
-                    stdout(),
-                    cursor::MoveToNextLine(100)
-                ).unwrap();
+                queue!(stdout(), cursor::MoveToNextLine(100)).unwrap();
+            }
+            print!(": ");
+            stdout().flush().unwrap();
+            terminal::disable_raw_mode().unwrap();
+            execute!(stdout(), cursor::Show,).unwrap();
+            let mut input = String::new();
+            stdin().read_line(&mut input).unwrap();
+            input = input.trim().to_owned();
+            terminal::enable_raw_mode().unwrap();
+            execute!(stdout(), cursor::Hide,).unwrap();
+            utils::unprint(1);
+            if *allow_empty || !input.is_empty() {
+                *value = input;
+            }
+            if let PrintState::Big = menu.printed {
+                print(menu);
+            } else {
+                print_in_place(menu, menu.selected);
+                stdout().flush().unwrap();
+            }
+        }
+        TMIKind::Numeric {
+            value,
+            step,
+            min,
+            max,
+        } => {
+            if let PrintState::Big = menu.printed {
+                queue!(stdout(), cursor::MoveToNextLine(100)).unwrap();
             }
             utils::number_range_indicator(*step, *min, *max);
             stdout().flush().unwrap();
             terminal::disable_raw_mode().unwrap();
-            execute!(
-                stdout(),
-                cursor::Show,
-            ).unwrap();
+            execute!(stdout(), cursor::Show,).unwrap();
             let mut input = String::new();
             stdin().read_line(&mut input).unwrap();
             terminal::enable_raw_mode().unwrap();
-            execute!(
-                stdout(),
-                cursor::Hide,
-            ).unwrap();
+            execute!(stdout(), cursor::Hide,).unwrap();
             utils::unprint(1);
             if let Ok(input) = input.trim().parse() {
                 if utils::value_valid(input, *step, *min, *max) {
                     *value = input;
                 }
             }
-            if let PrintState::Big = menu.printed  {
+            if let PrintState::Big = menu.printed {
                 print(menu);
             } else {
                 print_in_place(menu, menu.selected);
@@ -393,27 +396,24 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
                 menu.printed = PrintState::None;
                 print(menu);
                 terminal::enable_raw_mode().unwrap();
-                execute!(
-                    stdout(),
-                    cursor::Hide
-                ).unwrap();
+                execute!(stdout(), cursor::Hide).unwrap();
             }
         }
-        _ => {}
+        TMIKind::Label => {}
     }
 }
 
 fn inc_value(menu: &mut TerminalMenuStruct) {
     match &mut menu.items[menu.selected].kind {
-        TMIKind::Scroll { values, selected } |
-        TMIKind::List   { values, selected }=> {
+        TMIKind::Scroll { values, selected } | TMIKind::List { values, selected } => {
             *selected += 1;
             if *selected == values.len() {
                 *selected = 0;
             }
-
         }
-        TMIKind::Numeric { value, step, max, .. } => {
+        TMIKind::Numeric {
+            value, step, max, ..
+        } => {
             if let Some(step) = step {
                 *value += *step;
                 if let Some(max) = max {
@@ -423,27 +423,28 @@ fn inc_value(menu: &mut TerminalMenuStruct) {
                 }
             }
         }
-        _ => return
+        _ => return,
     }
     if let PrintState::Big = menu.printed {
         print(menu);
     } else {
-        print_in_place(&menu, menu.selected);
+        print_in_place(menu, menu.selected);
         stdout().flush().unwrap();
     }
 }
 
 fn dec_value(menu: &mut TerminalMenuStruct) {
     match &mut menu.items[menu.selected].kind {
-        TMIKind::Scroll { values, selected } |
-        TMIKind::List   { values, selected }=> {
+        TMIKind::Scroll { values, selected } | TMIKind::List { values, selected } => {
             if *selected == 0 {
                 *selected = values.len() - 1;
             } else {
                 *selected -= 1;
             }
         }
-        TMIKind::Numeric { value, step, min, .. } => {
+        TMIKind::Numeric {
+            value, step, min, ..
+        } => {
             if let Some(step) = step {
                 *value -= *step;
                 if let Some(min) = min {
@@ -453,12 +454,12 @@ fn dec_value(menu: &mut TerminalMenuStruct) {
                 }
             }
         }
-        _ => return
+        _ => return,
     }
     if let PrintState::Big = menu.printed {
         print(menu);
     } else {
-        print_in_place(&menu, menu.selected);
+        print_in_place(menu, menu.selected);
         stdout().flush().unwrap();
     }
 }

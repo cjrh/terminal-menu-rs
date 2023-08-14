@@ -3,12 +3,10 @@
 ///
 
 fn main() {
-    use terminal_menu::{menu, button, run, mut_menu};
+    use terminal_menu::{button, menu, mut_menu, run};
     let menu = menu(
-
         // create buttons representing numbers from 1 to 100
-        (1..100).map(|n| button(format!("{}", n))).collect()
-
+        (1..100).map(|n| button(format!("{}", n))).collect(),
     );
     run(&menu);
     println!("{}", mut_menu(&menu).selected_item_name());
