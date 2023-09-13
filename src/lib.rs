@@ -253,12 +253,14 @@ impl TerminalMenuItem {
 
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum PrintState {
     None,
     Small,
     Big
 }
 
+#[derive(Clone, Copy)]
 pub struct TerminalMenuStruct {
     name: Option<String>,
     pub items: Vec<TerminalMenuItem>,
