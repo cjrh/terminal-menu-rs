@@ -11,6 +11,7 @@ use crossterm::style::Color;
 
 pub type TerminalMenu = Arc<RwLock<TerminalMenuStruct>>;
 
+#[derive(Clone, Copy)]
 enum TMIKind {
     Label,
     Button,
@@ -21,6 +22,8 @@ enum TMIKind {
     Numeric { value:  f64, step: Option<f64>, min: Option<f64>, max: Option<f64> },
     Submenu(TerminalMenu),
 }
+
+#[derive(Clone, Copy)]
 pub struct TerminalMenuItem {
     name: String,
     kind: TMIKind,
