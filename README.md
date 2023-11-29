@@ -1,5 +1,5 @@
 # terminal-menu-rs
-Display simple menus on the terminal.  
+Display simple full-screen menus on the terminal.  
 [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 ```
   ---------------

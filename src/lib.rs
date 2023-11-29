@@ -252,7 +252,6 @@ impl TerminalMenuItem {
 
 pub(crate) enum PrintState {
     None,
-    Small,
     Big
 }
 

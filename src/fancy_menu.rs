@@ -32,31 +32,17 @@ pub fn run(menu: TerminalMenu) {
 
     {
         let mut menu_wr = menu.write().unwrap();
-        if let PrintState::Small = menu_wr.printed {
-            utils::unprint(menu_wr.items.len());
-        } else if let PrintState::Big = menu_wr.printed {
-            execute!(
-                stdout(),
-                terminal::LeaveAlternateScreen
-            ).unwrap();
-        }
+        execute!(
+            stdout(),
+            terminal::LeaveAlternateScreen
+        ).unwrap();
         menu_wr.printed = PrintState::None;
         menu_wr.exited = true;
     }
 }
 
 fn print(menu_wr: &mut TerminalMenuStruct) {
-    if let PrintState::Big = menu_wr.printed {
-        print_big(menu_wr);
-    } else if menu_wr.items.len() + 1 >= utils::term_height() || menu_wr.longest_name >= utils::term_width() /*|| cfg!(windows)*/ {
-        print_big(menu_wr);
-    } else if let PrintState::None = menu_wr.printed {
-        for i in 0..menu_wr.items.len() {
-            print_item(&menu_wr, i);
-            println!();
-        }
-        menu_wr.printed = PrintState::Small;
-    }
+    print_big(menu_wr);
 }
 
 fn print_big(menu: &mut TerminalMenuStruct) {
@@ -64,10 +50,7 @@ fn print_big(menu: &mut TerminalMenuStruct) {
     if term_height <= 3 {
         return;
     }
-    if let PrintState::Small = menu.printed {
-        utils::unprint(menu.items.len());
-    }
-    if let PrintState::Small | PrintState::None = menu.printed {
+    if let PrintState::None = menu.printed {
         queue!(
             stdout(),
             terminal::EnterAlternateScreen
@@ -211,29 +194,10 @@ fn handle_input(menu: &TerminalMenu) {
     }
 }
 
-fn print_in_place(menu: &TerminalMenuStruct, index: usize) {
-    queue!(
-        stdout(),
-        cursor::SavePosition,
-        cursor::MoveUp((menu.items.len() - index) as u16),
-        terminal::Clear(terminal::ClearType::UntilNewLine)
-    ).unwrap();
-    print_item(menu, index);
-    queue!(
-        stdout(),
-        cursor::RestorePosition
-    ).unwrap();
-}
-
 fn select(menu: &mut TerminalMenuStruct, index: usize) {
-    let old_active = menu.selected;
+    //let old_active = menu.selected;
     menu.selected = index;
-    if let PrintState::Small = menu.printed {
-        print_in_place(menu, old_active);
-        print_in_place(menu, index);
-    } else {
-        print_big(menu);
-    }
+    print_big(menu);
     stdout().flush().unwrap();
 }
 
@@ -283,15 +247,6 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
                     }
                 ).collect());
             temp_menu.write().unwrap().selected = *selected;
-            if let PrintState::Small = menu.printed {
-                terminal::disable_raw_mode().unwrap();
-                utils::unprint(item_count);
-                menu.printed = PrintState::None;
-            }
-
-            if let PrintState::Big = menu.printed {
-                temp_menu.write().unwrap().printed = PrintState::Big;
-            }
 
             crate::run(&temp_menu);
 
@@ -306,12 +261,10 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
             ).unwrap();
         }
         TMIKind::String { value, allow_empty } => {
-            if let PrintState::Big = menu.printed {
-                queue!(
-                    stdout(),
-                    cursor::MoveToNextLine(100)
-                ).unwrap();
-            }
+            queue!(
+                stdout(),
+                cursor::MoveToNextLine(100)
+            ).unwrap();
             print!(": ");
             stdout().flush().unwrap();
             terminal::disable_raw_mode().unwrap();
@@ -331,20 +284,13 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
             if *allow_empty || !input.is_empty() {
                 *value = input;
             }
-            if let PrintState::Big = menu.printed  {
-                print(menu);
-            } else {
-                print_in_place(menu, menu.selected);
-                stdout().flush().unwrap();
-            }
+            print(menu);
         }
         TMIKind::Numeric { value, step, min, max } => {
-            if let PrintState::Big = menu.printed {
-                queue!(
-                    stdout(),
-                    cursor::MoveToNextLine(100)
-                ).unwrap();
-            }
+            queue!(
+                stdout(),
+                cursor::MoveToNextLine(100)
+            ).unwrap();
             utils::number_range_indicator(*step, *min, *max);
             stdout().flush().unwrap();
             terminal::disable_raw_mode().unwrap();
@@ -365,24 +311,9 @@ fn handle_enter(menu: &mut TerminalMenuStruct) {
                     *value = input;
                 }
             }
-            if let PrintState::Big = menu.printed  {
-                print(menu);
-            } else {
-                print_in_place(menu, menu.selected);
-                stdout().flush().unwrap();
-            }
+            print(menu);
         }
         TMIKind::Submenu(submenu) => {
-            if let PrintState::Small = menu.printed {
-                terminal::disable_raw_mode().unwrap();
-                utils::unprint(item_count);
-                menu.printed = PrintState::None;
-            }
-
-            if let PrintState::Big = menu.printed {
-                submenu.write().unwrap().printed = PrintState::Big;
-            }
-
             crate::run(submenu);
 
             if let Some(exit_menu) = &submenu.clone().read().unwrap().exit {
@@ -425,12 +356,7 @@ fn inc_value(menu: &mut TerminalMenuStruct) {
         }
         _ => return
     }
-    if let PrintState::Big = menu.printed {
-        print(menu);
-    } else {
-        print_in_place(&menu, menu.selected);
-        stdout().flush().unwrap();
-    }
+    print(menu);
 }
 
 fn dec_value(menu: &mut TerminalMenuStruct) {
@@ -455,10 +381,5 @@ fn dec_value(menu: &mut TerminalMenuStruct) {
         }
         _ => return
     }
-    if let PrintState::Big = menu.printed {
-        print(menu);
-    } else {
-        print_in_place(&menu, menu.selected);
-        stdout().flush().unwrap();
-    }
+    print(menu);
 }
