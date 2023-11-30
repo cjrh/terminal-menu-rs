@@ -227,7 +227,7 @@ fn dec(menu: &TerminalMenuStruct, mut index: usize) -> usize {
 }
 
 fn handle_enter(menu: &mut TerminalMenuStruct) {
-    let item_count = menu.items.len();
+    let _item_count = menu.items.len();
     match &mut menu.items[menu.selected].kind {
         TMIKind::Button => {
             menu.exit = menu.name.clone();
