@@ -1,5 +1,5 @@
 # terminal-menu-rs
-Display simple full-screen menus on the terminal.  
+Display simple full-screen menus on the terminal.
 [Examples](https://gitlab.com/xamn/terminal-menu-rs/tree/master/examples)
 ```
   ---------------
@@ -8,8 +8,9 @@ Display simple full-screen menus on the terminal.
   ---------------
 > Selection       Second Option
   Do Something   [Yes] No
-  Your Name       Samuel          
+  Your Name       Samuel
+  Some Password             ****
   Numeric         5.25
-  Submenu    
-  Exit     
+  Submenu
+  Exit
 ```
