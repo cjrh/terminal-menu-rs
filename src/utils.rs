@@ -1,4 +1,4 @@
-use std::io::stdout;
+use std::io::stdout as output_pipe;
 use std::time::Duration;
 use crossterm::*;
 use lazy_static::lazy_static;
@@ -18,7 +18,7 @@ pub fn _term_width() -> usize {
 
 pub fn unprint(item_count: usize) {
     execute!(
-        stdout(),
+        output_pipe(),
         cursor::MoveUp(item_count as u16),
         terminal::Clear(terminal::ClearType::FromCursorDown)
     ).unwrap()
